@@ -1,9 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
   output   = "../src/lib/generated/prisma"
@@ -19,7 +13,35 @@ model User {
   username  String @unique
   publicKey String // User's public key for encryption
 
-  // workspaces    WorkspaceUser[]
-  // folders       FolderUser[]
-  // files         FileUser[]
+  workspaces WorkspaceUser[]
+}
+
+enum WorkspaceUserPermission {
+  EDIT
+  DELETE
+  VIEW
+  MANAGE_USERS
+}
+
+// More deep we go in tree more priority permission has
+
+model WorkspaceUser {
+  id          String    @id @default(cuid())
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  encryptedWorkspaceSecretKey String // Workspace secret key encrypted with user's public key
+
+  permissions WorkspaceUserPermission[]
+
+  @@unique([workspaceId, userId])
+}
+
+model Workspace {
+  id            String          @id @default(cuid())
+  encryptedName String // Name encrypted with workspace secret key
+  users         WorkspaceUser[]
 }

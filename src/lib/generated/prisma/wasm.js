@@ -123,6 +123,19 @@ exports.Prisma.UserScalarFieldEnum = {
   publicKey: 'publicKey'
 };
 
+exports.Prisma.WorkspaceUserScalarFieldEnum = {
+  id: 'id',
+  workspaceId: 'workspaceId',
+  userId: 'userId',
+  encryptedWorkspaceSecretKey: 'encryptedWorkspaceSecretKey',
+  permissions: 'permissions'
+};
+
+exports.Prisma.WorkspaceScalarFieldEnum = {
+  id: 'id',
+  encryptedName: 'encryptedName'
+};
+
 exports.Prisma.SortOrder = {
   asc: 'asc',
   desc: 'desc'
@@ -132,10 +145,17 @@ exports.Prisma.QueryMode = {
   default: 'default',
   insensitive: 'insensitive'
 };
-
+exports.WorkspaceUserPermission = exports.$Enums.WorkspaceUserPermission = {
+  EDIT: 'EDIT',
+  DELETE: 'DELETE',
+  VIEW: 'VIEW',
+  MANAGE_USERS: 'MANAGE_USERS'
+};
 
 exports.Prisma.ModelName = {
-  User: 'User'
+  User: 'User',
+  WorkspaceUser: 'WorkspaceUser',
+  Workspace: 'Workspace'
 };
 
 /**
