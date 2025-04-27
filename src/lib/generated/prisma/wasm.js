@@ -136,6 +136,13 @@ exports.Prisma.WorkspaceScalarFieldEnum = {
   encryptedName: 'encryptedName'
 };
 
+exports.Prisma.FileScalarFieldEnum = {
+  id: 'id',
+  encryptedName: 'encryptedName',
+  content: 'content',
+  workspaceId: 'workspaceId'
+};
+
 exports.Prisma.SortOrder = {
   asc: 'asc',
   desc: 'desc'
@@ -155,7 +162,8 @@ exports.WorkspaceUserPermission = exports.$Enums.WorkspaceUserPermission = {
 exports.Prisma.ModelName = {
   User: 'User',
   WorkspaceUser: 'WorkspaceUser',
-  Workspace: 'Workspace'
+  Workspace: 'Workspace',
+  File: 'File'
 };
 
 /**

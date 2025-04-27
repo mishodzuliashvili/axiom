@@ -1,13 +1,8 @@
-import { KEY_NAME } from "@/lib/constants";
-import { cookies } from "next/headers";
-import { redirect } from "next/navigation";
+import { ifAuthenticatedRedirect } from "@/lib/auth";
+import LandingPage from "./_components/LandingPage";
 
-export default async function LandingPage() {
-  const c = await cookies();
-  if (c.has(KEY_NAME.USER_PUBLIC_KEY)) {
-    redirect("/dashboard");
-  }
-  // if cookie has public key redirect to dashboard
+export default async function LandingPag() {
+  await ifAuthenticatedRedirect();
 
-  return <div>landign pgae</div>;
+  return <LandingPage />;
 }

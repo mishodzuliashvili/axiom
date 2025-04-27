@@ -23,8 +23,6 @@ enum WorkspaceUserPermission {
   MANAGE_USERS
 }
 
-// More deep we go in tree more priority permission has
-
 model WorkspaceUser {
   id          String    @id @default(cuid())
   workspaceId String
@@ -44,4 +42,15 @@ model Workspace {
   id            String          @id @default(cuid())
   encryptedName String // Name encrypted with workspace secret key
   users         WorkspaceUser[]
+  files         File[]
+}
+
+model File {
+  id String @id @default(cuid())
+
+  encryptedName String // Name encrypted with workspace secret key
+  content       String // Content encrypted with workspace secret key
+
+  workspaceId String
+  Workspace   Workspace @relation(fields: [workspaceId], references: [id])
 }
