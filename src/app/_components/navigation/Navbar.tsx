@@ -1,4 +1,5 @@
 "use client";
+
 import {
   Plus,
   Shield,
@@ -28,9 +29,9 @@ export default function Navbar({
   isSidebarOpened: boolean;
 }) {
   const [scrolled, setScrolled] = useState(false);
-
+  const homeLink = user ? "/dashboard" : "/";
   const NAV_ITEMS = [
-    { href: "/", label: "Home", icon: Home },
+    { href: homeLink, label: "Home", icon: Home },
     { href: "/about", label: "About", icon: Info },
     { href: "/contact", label: "Contact", icon: MessageCircle },
   ];
@@ -60,7 +61,7 @@ export default function Navbar({
           <div className="flex items-center gap-2 md:gap-6">
             <div className="flex items-center">
               <div className="transition-transform duration-200 hover:scale-105">
-                <Logo />
+                {homeLink && <Logo href={homeLink.toString()} />}
               </div>
             </div>
 

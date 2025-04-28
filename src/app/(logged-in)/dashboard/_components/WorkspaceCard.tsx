@@ -38,7 +38,7 @@ export default function WorkspaceCard({
   );
 
   return (
-    <Link href={`/dashboard/workspace/${workspace.id}`}>
+    <Link href={`/workspaces/${workspace.id}`}>
       <div
         className={`p-5 rounded-xl bg-gradient-to-r from-blue-500/20 to-purple-500/20 hover:from-blue-500/30 hover:to-purple-500/30 text-white hover:bg-opacity-20 cursor-pointer transition-all`}
       >

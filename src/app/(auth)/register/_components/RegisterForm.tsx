@@ -5,11 +5,17 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import doesUsernameExist from "../_actions/checkUsername";
 import createUser from "../_actions/createUser";
-import { KEY_NAME } from "@/lib/constants";
 import { generateKeyPairClient } from "@/lib/cryptoClientSide";
-import toast from "react-hot-toast";
-import { Shield, Lock, CheckCircle, Users, Database } from "lucide-react";
+import {
+  Shield,
+  Lock,
+  CheckCircle,
+  Users,
+  Database,
+  AlertTriangle,
+} from "lucide-react";
 import { clearUserClient, saveUserClient } from "@/lib/clientUserStore";
+import customToast from "@/lib/toast";
 
 export default function RegisterPage() {
   const [step, setStep] = useState(0);
@@ -86,7 +92,7 @@ export default function RegisterPage() {
         await clearUserClient();
       }
 
-      toast.success("You successfully registered!");
+      customToast.success("You successfully registered!");
       router.push("/");
     } catch (error) {
       setErrorMessage("Failed to create account. Please try again.");
@@ -204,6 +210,21 @@ export default function RegisterPage() {
 
             {step === 1 && (
               <div className="space-y-4">
+                <div className="p-4 bg-yellow-500/20 border border-yellow-400/30 text-yellow-300 rounded-lg text-sm space-y-2 flex items-start">
+                  <AlertTriangle className="h-10 w-10 text-yellow-300 mr-3 mt-1" />
+                  <div>
+                    <h4 className="font-semibold">Important Reminder</h4>
+                    <p>
+                      Please download and securely store your credentials. You
+                      will be automatically logged out after 1 month, and you
+                      will need these credentials to log back in.
+                    </p>
+                    <p>
+                      Without your credentials, you will lose access to your
+                      account permanently.
+                    </p>
+                  </div>
+                </div>
                 <div className="bg-blue-900/30 p-4 rounded-lg border border-blue-500/30">
                   <div className="flex items-start">
                     <div className="text-blue-400 mr-3">

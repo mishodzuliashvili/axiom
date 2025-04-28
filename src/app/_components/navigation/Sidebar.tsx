@@ -39,7 +39,7 @@ export default function Sidebar({
   ];
 
   const SECONDARY_NAV_ITEMS = user
-    ? [{ href: "/workspaces", label: "My Workspaces", icon: Network }]
+    ? []
     : [
         { href: "/register", label: "Register", icon: Shield },
         { href: "/login", label: "Login", icon: Lock },
@@ -127,9 +127,11 @@ export default function Sidebar({
             </div>
 
             <div className="mt-6 px-4">
-              <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3 px-3">
-                {user ? "Workspaces" : "Account"}
-              </h3>
+              {!user && (
+                <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3 px-3">
+                  {user ? "Workspaces" : "Account"}
+                </h3>
+              )}
               <div className="space-y-1">
                 {SECONDARY_NAV_ITEMS.map((item, index) => {
                   return (

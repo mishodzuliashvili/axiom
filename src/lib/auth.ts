@@ -112,6 +112,6 @@ export const setJWTCookie = async (userId: string) => {
     secure: process.env.NODE_ENV === "production",
     sameSite: "strict",
     path: "/",
-    expires: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
+    expires: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
   });
 };

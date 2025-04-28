@@ -140,6 +140,7 @@ exports.Prisma.FileScalarFieldEnum = {
   id: 'id',
   encryptedName: 'encryptedName',
   content: 'content',
+  encryptedMetadata: 'encryptedMetadata',
   workspaceId: 'workspaceId'
 };
 

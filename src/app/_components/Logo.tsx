@@ -1,8 +1,8 @@
 import Link from "next/link";
 
-export default function Logo() {
+export default function Logo({ href = "/" }: { href?: string }) {
   return (
-    <Link href="/">
+    <Link href={href}>
       <svg
         className="h-6 md:h-8 "
         viewBox="0 0 146 40"

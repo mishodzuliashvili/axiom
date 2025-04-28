@@ -4,11 +4,11 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { KEY_NAME } from "@/lib/constants";
-import toast from "react-hot-toast";
 import { Shield, Key, Upload, LogIn, Lock, FileText } from "lucide-react";
 import { decryptWithPrivateKey } from "@/lib/cryptoClientSide";
 import verifyUserCredentials from "../_actions/verifyUserCredentials";
 import verifyAuth from "../_actions/verifyAuth";
+import customToast from "@/lib/toast";
 
 export default function LoginForm() {
   const router = useRouter();
@@ -46,7 +46,6 @@ export default function LoginForm() {
 
         setUsername(extractedUsername);
         setPrivateKey(extractedPrivateKey);
-        // toast.success("Credentials loaded successfully");
       } catch (error) {
         setErrorMessage(
           "Invalid credentials file format. File should contain username on first line and private key on second line."
@@ -98,7 +97,7 @@ export default function LoginForm() {
       localStorage.setItem(KEY_NAME.USER_PRIVATE_KEY, privateKey);
       localStorage.setItem(KEY_NAME.USER_PUBLIC_KEY, publicKey);
 
-      toast.success("Login successful!");
+      customToast.success("Login successful!");
       //   router.push("/dashboard");
     } catch (error) {
       setErrorMessage("Login failed. Please check your credentials.");

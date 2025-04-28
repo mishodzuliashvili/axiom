@@ -4,6 +4,7 @@ import { logout } from "../_actions/logout";
 import toast from "react-hot-toast";
 import { useState } from "react";
 import { clearUserClient } from "@/lib/clientUserStore";
+import customToast from "@/lib/toast";
 
 export default function LogoutButton({
   className,
@@ -26,14 +27,14 @@ export default function LogoutButton({
         try {
           const res = await logout({});
           if (!res.success) {
-            toast.error("Cannot log out");
+            customToast.error("Cannot log out");
           } else {
             await clearUserClient();
             router.push("/");
             onClick && onClick();
           }
         } catch (error) {
-          toast.error("Cannot log out");
+          customToast.error("Cannot log out");
         }
       }}
     >

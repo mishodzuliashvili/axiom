@@ -48,8 +48,9 @@ model Workspace {
 model File {
   id String @id @default(cuid())
 
-  encryptedName String // Name encrypted with workspace secret key
-  content       String // Content encrypted with workspace secret key
+  encryptedName     String // Name encrypted with workspace secret key
+  content           String // Content encrypted with workspace secret key
+  encryptedMetadata String
 
   workspaceId String
   Workspace   Workspace @relation(fields: [workspaceId], references: [id])

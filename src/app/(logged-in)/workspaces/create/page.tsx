@@ -10,10 +10,10 @@ import {
   encryptWithPublicKey,
   encryptWithSymmetricKey,
 } from "@/lib/cryptoClientSide";
-import toast from "react-hot-toast";
 import createWorkspace from "./_actions/createWorkspace";
 import { getUserInfo } from "@/lib/clientUserStore";
 import Link from "next/link";
+import customToast from "@/lib/toast";
 
 export default function WorkspacesCreatePage() {
   const [workspaceName, setWorkspaceName] = useState("");
@@ -55,7 +55,7 @@ export default function WorkspacesCreatePage() {
       });
 
       if (result.success) {
-        toast.success("Workspace created successfully!");
+        customToast.success("Workspace created successfully!");
         router.push("/dashboard");
       } else {
         throw new Error("Failed to create workspace");

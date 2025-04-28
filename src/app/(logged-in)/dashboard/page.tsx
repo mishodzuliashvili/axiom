@@ -142,7 +142,7 @@ export default async function DashboardPage() {
                 Create your first workspace to start collaborating securely
               </p>
               <Link
-                href="/dashboard/new-workspace"
+                href="/workspaces/create"
                 className="inline-flex items-center justify-center px-5 py-3 rounded-lg text-sm font-medium text-white bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 transition-all duration-300"
               >
                 <Plus className="h-4 w-4 mr-2" />
@@ -213,7 +213,7 @@ export default async function DashboardPage() {
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                             <Link
-                              href={`/dashboard/workspace/${workspaceUser.workspace.id}/file/${file.id}`}
+                              href={`/files/${file.id}`}
                               className="text-blue-400 hover:text-blue-300"
                             >
                               Open

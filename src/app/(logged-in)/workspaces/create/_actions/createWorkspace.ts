@@ -21,7 +21,7 @@ const createWorkspace = createServerAction(
             encryptedWorkspaceSecretKey,
             permissions: [
               WorkspaceUserPermission.EDIT,
-              WorkspaceUserPermission.EDIT,
+              WorkspaceUserPermission.DELETE,
               WorkspaceUserPermission.MANAGE_USERS,
               WorkspaceUserPermission.VIEW,
             ],

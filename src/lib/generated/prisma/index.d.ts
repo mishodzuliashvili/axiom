@@ -4410,6 +4410,7 @@ export namespace Prisma {
     id: string | null
     encryptedName: string | null
     content: string | null
+    encryptedMetadata: string | null
     workspaceId: string | null
   }
 
@@ -4417,6 +4418,7 @@ export namespace Prisma {
     id: string | null
     encryptedName: string | null
     content: string | null
+    encryptedMetadata: string | null
     workspaceId: string | null
   }
 
@@ -4424,6 +4426,7 @@ export namespace Prisma {
     id: number
     encryptedName: number
     content: number
+    encryptedMetadata: number
     workspaceId: number
     _all: number
   }
@@ -4433,6 +4436,7 @@ export namespace Prisma {
     id?: true
     encryptedName?: true
     content?: true
+    encryptedMetadata?: true
     workspaceId?: true
   }
 
@@ -4440,6 +4444,7 @@ export namespace Prisma {
     id?: true
     encryptedName?: true
     content?: true
+    encryptedMetadata?: true
     workspaceId?: true
   }
 
@@ -4447,6 +4452,7 @@ export namespace Prisma {
     id?: true
     encryptedName?: true
     content?: true
+    encryptedMetadata?: true
     workspaceId?: true
     _all?: true
   }
@@ -4527,6 +4533,7 @@ export namespace Prisma {
     id: string
     encryptedName: string
     content: string
+    encryptedMetadata: string
     workspaceId: string
     _count: FileCountAggregateOutputType | null
     _min: FileMinAggregateOutputType | null
@@ -4551,6 +4558,7 @@ export namespace Prisma {
     id?: boolean
     encryptedName?: boolean
     content?: boolean
+    encryptedMetadata?: boolean
     workspaceId?: boolean
     Workspace?: boolean | WorkspaceDefaultArgs<ExtArgs>
   }, ExtArgs["result"]["file"]>
@@ -4559,6 +4567,7 @@ export namespace Prisma {
     id?: boolean
     encryptedName?: boolean
     content?: boolean
+    encryptedMetadata?: boolean
     workspaceId?: boolean
     Workspace?: boolean | WorkspaceDefaultArgs<ExtArgs>
   }, ExtArgs["result"]["file"]>
@@ -4567,6 +4576,7 @@ export namespace Prisma {
     id?: boolean
     encryptedName?: boolean
     content?: boolean
+    encryptedMetadata?: boolean
     workspaceId?: boolean
     Workspace?: boolean | WorkspaceDefaultArgs<ExtArgs>
   }, ExtArgs["result"]["file"]>
@@ -4575,10 +4585,11 @@ export namespace Prisma {
     id?: boolean
     encryptedName?: boolean
     content?: boolean
+    encryptedMetadata?: boolean
     workspaceId?: boolean
   }
 
-  export type FileOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "encryptedName" | "content" | "workspaceId", ExtArgs["result"]["file"]>
+  export type FileOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "encryptedName" | "content" | "encryptedMetadata" | "workspaceId", ExtArgs["result"]["file"]>
   export type FileInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     Workspace?: boolean | WorkspaceDefaultArgs<ExtArgs>
   }
@@ -4598,6 +4609,7 @@ export namespace Prisma {
       id: string
       encryptedName: string
       content: string
+      encryptedMetadata: string
       workspaceId: string
     }, ExtArgs["result"]["file"]>
     composites: {}
@@ -5026,6 +5038,7 @@ export namespace Prisma {
     readonly id: FieldRef<"File", 'String'>
     readonly encryptedName: FieldRef<"File", 'String'>
     readonly content: FieldRef<"File", 'String'>
+    readonly encryptedMetadata: FieldRef<"File", 'String'>
     readonly workspaceId: FieldRef<"File", 'String'>
   }
     
@@ -5487,6 +5500,7 @@ export namespace Prisma {
     id: 'id',
     encryptedName: 'encryptedName',
     content: 'content',
+    encryptedMetadata: 'encryptedMetadata',
     workspaceId: 'workspaceId'
   };
 
@@ -5713,6 +5727,7 @@ export namespace Prisma {
     id?: StringFilter<"File"> | string
     encryptedName?: StringFilter<"File"> | string
     content?: StringFilter<"File"> | string
+    encryptedMetadata?: StringFilter<"File"> | string
     workspaceId?: StringFilter<"File"> | string
     Workspace?: XOR<WorkspaceScalarRelationFilter, WorkspaceWhereInput>
   }
@@ -5721,6 +5736,7 @@ export namespace Prisma {
     id?: SortOrder
     encryptedName?: SortOrder
     content?: SortOrder
+    encryptedMetadata?: SortOrder
     workspaceId?: SortOrder
     Workspace?: WorkspaceOrderByWithRelationInput
   }
@@ -5732,6 +5748,7 @@ export namespace Prisma {
     NOT?: FileWhereInput | FileWhereInput[]
     encryptedName?: StringFilter<"File"> | string
     content?: StringFilter<"File"> | string
+    encryptedMetadata?: StringFilter<"File"> | string
     workspaceId?: StringFilter<"File"> | string
     Workspace?: XOR<WorkspaceScalarRelationFilter, WorkspaceWhereInput>
   }, "id">
@@ -5740,6 +5757,7 @@ export namespace Prisma {
     id?: SortOrder
     encryptedName?: SortOrder
     content?: SortOrder
+    encryptedMetadata?: SortOrder
     workspaceId?: SortOrder
     _count?: FileCountOrderByAggregateInput
     _max?: FileMaxOrderByAggregateInput
@@ -5753,6 +5771,7 @@ export namespace Prisma {
     id?: StringWithAggregatesFilter<"File"> | string
     encryptedName?: StringWithAggregatesFilter<"File"> | string
     content?: StringWithAggregatesFilter<"File"> | string
+    encryptedMetadata?: StringWithAggregatesFilter<"File"> | string
     workspaceId?: StringWithAggregatesFilter<"File"> | string
   }
 
@@ -5903,6 +5922,7 @@ export namespace Prisma {
     id?: string
     encryptedName: string
     content: string
+    encryptedMetadata: string
     Workspace: WorkspaceCreateNestedOneWithoutFilesInput
   }
 
@@ -5910,6 +5930,7 @@ export namespace Prisma {
     id?: string
     encryptedName: string
     content: string
+    encryptedMetadata: string
     workspaceId: string
   }
 
@@ -5917,6 +5938,7 @@ export namespace Prisma {
     id?: StringFieldUpdateOperationsInput | string
     encryptedName?: StringFieldUpdateOperationsInput | string
     content?: StringFieldUpdateOperationsInput | string
+    encryptedMetadata?: StringFieldUpdateOperationsInput | string
     Workspace?: WorkspaceUpdateOneRequiredWithoutFilesNestedInput
   }
 
@@ -5924,6 +5946,7 @@ export namespace Prisma {
     id?: StringFieldUpdateOperationsInput | string
     encryptedName?: StringFieldUpdateOperationsInput | string
     content?: StringFieldUpdateOperationsInput | string
+    encryptedMetadata?: StringFieldUpdateOperationsInput | string
     workspaceId?: StringFieldUpdateOperationsInput | string
   }
 
@@ -5931,6 +5954,7 @@ export namespace Prisma {
     id?: string
     encryptedName: string
     content: string
+    encryptedMetadata: string
     workspaceId: string
   }
 
@@ -5938,12 +5962,14 @@ export namespace Prisma {
     id?: StringFieldUpdateOperationsInput | string
     encryptedName?: StringFieldUpdateOperationsInput | string
     content?: StringFieldUpdateOperationsInput | string
+    encryptedMetadata?: StringFieldUpdateOperationsInput | string
   }
 
   export type FileUncheckedUpdateManyInput = {
     id?: StringFieldUpdateOperationsInput | string
     encryptedName?: StringFieldUpdateOperationsInput | string
     content?: StringFieldUpdateOperationsInput | string
+    encryptedMetadata?: StringFieldUpdateOperationsInput | string
     workspaceId?: StringFieldUpdateOperationsInput | string
   }
 
@@ -6082,6 +6108,7 @@ export namespace Prisma {
     id?: SortOrder
     encryptedName?: SortOrder
     content?: SortOrder
+    encryptedMetadata?: SortOrder
     workspaceId?: SortOrder
   }
 
@@ -6089,6 +6116,7 @@ export namespace Prisma {
     id?: SortOrder
     encryptedName?: SortOrder
     content?: SortOrder
+    encryptedMetadata?: SortOrder
     workspaceId?: SortOrder
   }
 
@@ -6096,6 +6124,7 @@ export namespace Prisma {
     id?: SortOrder
     encryptedName?: SortOrder
     content?: SortOrder
+    encryptedMetadata?: SortOrder
     workspaceId?: SortOrder
   }
 
@@ -6481,12 +6510,14 @@ export namespace Prisma {
     id?: string
     encryptedName: string
     content: string
+    encryptedMetadata: string
   }
 
   export type FileUncheckedCreateWithoutWorkspaceInput = {
     id?: string
     encryptedName: string
     content: string
+    encryptedMetadata: string
   }
 
   export type FileCreateOrConnectWithoutWorkspaceInput = {
@@ -6538,6 +6569,7 @@ export namespace Prisma {
     id?: StringFilter<"File"> | string
     encryptedName?: StringFilter<"File"> | string
     content?: StringFilter<"File"> | string
+    encryptedMetadata?: StringFilter<"File"> | string
     workspaceId?: StringFilter<"File"> | string
   }
 
@@ -6620,6 +6652,7 @@ export namespace Prisma {
     id?: string
     encryptedName: string
     content: string
+    encryptedMetadata: string
   }
 
   export type WorkspaceUserUpdateWithoutWorkspaceInput = {
@@ -6647,18 +6680,21 @@ export namespace Prisma {
     id?: StringFieldUpdateOperationsInput | string
     encryptedName?: StringFieldUpdateOperationsInput | string
     content?: StringFieldUpdateOperationsInput | string
+    encryptedMetadata?: StringFieldUpdateOperationsInput | string
   }
 
   export type FileUncheckedUpdateWithoutWorkspaceInput = {
     id?: StringFieldUpdateOperationsInput | string
     encryptedName?: StringFieldUpdateOperationsInput | string
     content?: StringFieldUpdateOperationsInput | string
+    encryptedMetadata?: StringFieldUpdateOperationsInput | string
   }
 
   export type FileUncheckedUpdateManyWithoutWorkspaceInput = {
     id?: StringFieldUpdateOperationsInput | string
     encryptedName?: StringFieldUpdateOperationsInput | string
     content?: StringFieldUpdateOperationsInput | string
+    encryptedMetadata?: StringFieldUpdateOperationsInput | string
   }
 
 
