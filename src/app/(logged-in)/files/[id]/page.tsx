@@ -1,8 +1,8 @@
 import { getUser } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { notFound } from "next/navigation";
-import MarkdownFileEditor from "./_components/MarkdownFileEditor";
 import { WorkspaceUserPermission } from "@/lib/generated/prisma";
+import InfoFiller from "./_components/InfoFiller";
 
 export default async function FilePage({
   params,
@@ -34,12 +34,10 @@ export default async function FilePage({
   if (!workspaceUser.permissions.includes(WorkspaceUserPermission.EDIT))
     notFound();
 
-  // That page should be completly client side page where user can alter data(encrypted by workspace secret key)
-  // and send it over internet to different users via websiocket on that application,
-  // so when others will see there should be some consistent manner to merge content
   return (
     <div>
-      <MarkdownFileEditor
+      <InfoFiller
+        userId={user.id}
         encryptedWorkspaceSecretKey={workspaceUser.encryptedWorkspaceSecretKey}
         file={file}
       />
