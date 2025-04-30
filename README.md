@@ -1,36 +1,114 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 🔐 Axiom – Real-time Collaborative Encrypted Workspace
 
-## Getting Started
+**Axiom** is a real-time, end-to-end encrypted collaboration tool built for developers, teams, and creators who value privacy, speed, and control. Every action is synchronized instantly using WebSockets, and your data is encrypted client-side—ensuring only you and your collaborators can access it.
 
-First, run the development server:
+<svg
+        className="h-6 md:h-8 "
+        viewBox="0 0 146 40"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+      > <path
+          d="M0.335 39L15.0125 5.75H24.275L39 39H29.215L17.72 10.3575H21.425L9.93 39H0.335ZM8.3625 32.54L10.785 25.605H27.03L29.4525 32.54H8.3625ZM62.1889 39V13.255H71.2139V39H62.1889ZM66.7014 10.405C65.0547 10.405 63.7247 9.94583 62.7114 9.0275C61.6981 8.10917 61.1914 6.96917 61.1914 5.6075C61.1914 4.24583 61.6981 3.10583 62.7114 2.1875C63.7247 1.26917 65.0547 0.809999 66.7014 0.809999C68.3481 0.809999 69.6781 1.25333 70.6914 2.14C71.7047 2.995 72.2114 4.10333 72.2114 5.465C72.2114 6.89 71.7047 8.0775 70.6914 9.0275C69.7097 9.94583 68.3797 10.405 66.7014 10.405ZM86.674 39.4275C83.8557 39.4275 81.354 38.8575 79.169 37.7175C76.984 36.5775 75.2582 35.01 73.9915 33.015C72.7565 30.9883 72.139 28.6767 72.139 26.08C72.139 23.4833 72.7565 21.1875 73.9915 19.1925C75.2582 17.1975 76.984 15.6458 79.169 14.5375C81.354 13.3975 83.8557 12.8275 86.674 12.8275C89.4924 12.8275 91.994 13.3975 94.179 14.5375C96.3957 15.6458 98.1215 17.1975 99.3565 19.1925C100.592 21.1875 101.209 23.4833 101.209 26.08C101.209 28.6767 100.592 30.9883 99.3565 33.015C98.1215 35.01 96.3957 36.5775 94.179 37.7175C91.994 38.8575 89.4924 39.4275 86.674 39.4275ZM86.674 32.255C87.719 32.255 88.6374 32.0175 89.429 31.5425C90.2524 31.0675 90.9015 30.3708 91.3765 29.4525C91.8515 28.5025 92.089 27.3783 92.089 26.08C92.089 24.7817 91.8515 23.6892 91.3765 22.8025C90.9015 21.8842 90.2524 21.1875 89.429 20.7125C88.6374 20.2375 87.719 20 86.674 20C85.6607 20 84.7424 20.2375 83.919 20.7125C83.1274 21.1875 82.4782 21.8842 81.9715 22.8025C81.4965 23.6892 81.259 24.7817 81.259 26.08C81.259 27.3783 81.4965 28.5025 81.9715 29.4525C82.4782 30.3708 83.1274 31.0675 83.919 31.5425C84.7424 32.0175 85.6607 32.255 86.674 32.255ZM135.6 12.8275C137.595 12.8275 139.368 13.2392 140.92 14.0625C142.503 14.8542 143.738 16.0892 144.625 17.7675C145.543 19.4458 146.002 21.615 146.002 24.275V39H136.977V25.7475C136.977 23.9108 136.629 22.5808 135.932 21.7575C135.236 20.9025 134.286 20.475 133.082 20.475C132.227 20.475 131.451 20.6808 130.755 21.0925C130.058 21.5042 129.52 22.1375 129.14 22.9925C128.76 23.8158 128.57 24.8925 128.57 26.2225V39H119.545V25.7475C119.545 23.9108 119.196 22.5808 118.5 21.7575C117.835 20.9025 116.885 20.475 115.65 20.475C114.763 20.475 113.971 20.6808 113.275 21.0925C112.61 21.5042 112.071 22.1375 111.66 22.9925C111.28 23.8158 111.09 24.8925 111.09 26.2225V39H102.065V13.255H110.662V20.4275L108.952 18.385C109.902 16.5483 111.201 15.1708 112.847 14.2525C114.494 13.3025 116.331 12.8275 118.357 12.8275C120.669 12.8275 122.696 13.4292 124.437 14.6325C126.211 15.8042 127.398 17.6408 128 20.1425L125.055 19.525C125.973 17.435 127.351 15.8042 129.187 14.6325C131.056 13.4292 133.193 12.8275 135.6 12.8275Z"
+          fill="white"
+        /><path
+          d="M33.1122 39L44.9397 23.4675L44.7497 28.5975L33.3972 13.255H43.5622L49.9272 22.3275L46.1272 22.5175L52.8722 13.255H62.4197L51.0672 28.265V23.325L62.7522 39H52.4447L45.7947 29.31L49.5947 29.8325L42.8972 39H33.1122Z"
+          fill="#155DFC"
+        />
+</svg>
+
+## ⚡ Features
+
+- 🔒 End-to-end encryption with public/private & symmetric key cryptography
+- 🔄 Real-time collaboration using WebSockets
+- 🧠 Collaborative workspace with text editing, messaging, and asset sharing
+- 🧩 Role-based access control and authentication
+- 📦 Fully containerized via Docker for local and cloud deployment
+- ✅ Built from scratch using cutting-edge tools and clean architecture
+
+## 🛠️ Tech Stack
+
+- **Frontend**: Next.js 15, React 19, TypeScript, TailwindCSS, Lucide Icons
+- **Backend**: Node.js, WebSockets (via `next-ws`, `socket.io`), JWT Auth
+- **Database**: PostgreSQL, Prisma ORM
+- **Security**: RSA-OAEP + AES-GCM Encryption (Web Crypto API)
+- **Infrastructure**: Docker, GitHub Actions, Cloud Provider TBD
+
+## 🔐 Encryption Toolkit
+
+We use a hybrid encryption model:
+
+- RSA-OAEP (2048-bit) for key exchange
+- AES-GCM (256-bit) for data at rest and in motion
+- Built-in support for generating and managing keys on the client side
+
+_See `/lib` for full implementation of:_
+
+- RSA key generation
+- Symmetric key encryption/decryption
+- Secure data handling using base64 buffers
+
+## 🧪 Installation
+
+1. **Clone the repository:**
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+git clone https://github.com/mishodzuliashvili/axiom.git
+cd axiom
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+2. **Install dependencies:**
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+pnpm install
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+3. **Setup your database:**
 
-## Learn More
+```bash
+pnpm prisma migrate deploy
+```
 
-To learn more about Next.js, take a look at the following resources:
+4. **Configure environment variables:**
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+cp .env.example .env
+# Fill in the required credentials in `.env`
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+5. **Run the development server:**
 
-## Deploy on Vercel
+```bash
+pnpm run dev
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+6. Open [http://localhost:3000](http://localhost:3000) to explore Axiom.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## 👨‍💻 Team
+
+- [Misho Dzuliashvili](https://github.com/mishodzuliashvili) – Full Stack Engineer
+- [Luka Trapaidze](https://github.com/I-Bumblebee) – Frontend & UI/UX
+- [Luka Oniani](https://github.com/lukabatoni) – Backend & Infra Engineer
+
+## 🚧 Roadmap
+
+- [ ] Collaborative document and whiteboard views
+- [ ] Offline-first capability with local caching
+- [ ] GitHub integration
+- [ ] Mobile UI enhancements
+
+## ⚖️ Responsibility
+
+While we strive to maintain high-quality and secure code, this project is provided as is without any warranties or guarantees. The authors are not responsible for any damages, losses, or issues arising from the use or misuse of this software. Use it at your own risk.
+
+## ⚠️ Disclaimer of Misuse
+
+This software is intended for legal and ethical use only. The authors and contributors strictly prohibit the use of this project for any illegal activities.
+We do not assume any responsibility for unlawful use of this project. Any misuse is solely the responsibility of the individual or organization involved.
+
+## 🤝 Contributing
+
+We welcome your input and pull requests! Please open an issue to suggest improvements, or fork and contribute.
+
+## 📝 License
+
+This project is proprietary. All rights reserved. Please contact the authors for access or licensing inquiries.
