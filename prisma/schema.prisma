@@ -17,10 +17,12 @@ model User {
 }
 
 enum WorkspaceUserPermission {
+  ADD
   EDIT
   DELETE
   VIEW
   MANAGE_USERS
+  CREATOR
 }
 
 model WorkspaceUser {

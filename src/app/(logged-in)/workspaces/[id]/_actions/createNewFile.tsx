@@ -32,9 +32,7 @@ export const createNewFile = createServerAction(
     }
 
     const permissions = workspaceUser.permissions || [];
-    // TODO: add ADD permission to the enum and check for it here
-    // in this case, we will allow EDIT permission to create files
-    if (!permissions.includes(WorkspaceUserPermission.EDIT)) {
+    if (!permissions.includes(WorkspaceUserPermission.ADD)) {
       throw new Error("User does not have permission to create files");
     }
 
