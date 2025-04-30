@@ -1,5 +1,6 @@
 "use server";
 
+import { getUser } from "@/lib/auth";
 import { WorkspaceUserPermission } from "@/lib/generated/prisma";
 import createServerAction from "@/lib/utils/createServerAction";
 import { revalidatePath } from "next/cache";
@@ -12,13 +13,37 @@ export const createNewFile = createServerAction(
     encryptedContent: z.string().min(1),
     encryptedMetadata: z.string().min(1),
   }),
-  async ({ encryptedContent, encryptedName, workspaceId, encryptedMetadata }, prisma) => {
+  async (
+    { encryptedContent, encryptedName, workspaceId, encryptedMetadata },
+    prisma
+  ) => {
+    const user = await getUser();
+    if (!user) {
+      throw new Error("User not found");
+    }
+    const workspaceUser = await prisma.workspaceUser.findFirst({
+      where: {
+        userId: user.id,
+        workspaceId: workspaceId,
+      },
+    });
+    if (!workspaceUser) {
+      throw new Error("User not found in workspace");
+    }
+
+    const permissions = workspaceUser.permissions || [];
+    // TODO: add ADD permission to the enum and check for it here
+    // in this case, we will allow EDIT permission to create files
+    if (!permissions.includes(WorkspaceUserPermission.EDIT)) {
+      throw new Error("User does not have permission to create files");
+    }
+
     await prisma.file.create({
       data: {
         content: encryptedContent,
         encryptedName: encryptedName,
         workspaceId: workspaceId,
-        encryptedMetadata: encryptedMetadata
+        encryptedMetadata: encryptedMetadata,
       },
     });
 
