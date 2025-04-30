@@ -22,6 +22,7 @@ import {
   decryptWithPrivateKey,
   decryptWithSymmetricKey,
 } from "@/lib/cryptoClientSide";
+import { deleteFile } from "../_actions/deleteFile";
 
 interface FilesListProps {
   files: PrismaFile[];
@@ -215,6 +216,9 @@ export default function FilesList({
 
     try {
       // await deleteFile({ fileId });
+      await deleteFile({
+        fileId,
+      });
       router.refresh();
     } catch (error) {
       console.error("Failed to delete file:", error);
