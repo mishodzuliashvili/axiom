@@ -16,10 +16,10 @@
 ## 🛠️ Tech Stack
 
 - **Frontend**: Next.js 15, React 19, TypeScript, TailwindCSS, Lucide Icons
-- **Backend**: Node.js, WebSockets (via `next-ws`, `socket.io`), JWT Auth
+- **Backend**: Node.js, WebSockets, JWT Auth
 - **Database**: PostgreSQL, Prisma ORM
 - **Security**: RSA-OAEP + AES-GCM Encryption (Web Crypto API)
-- **Infrastructure**: Docker, GitHub Actions, Cloud Provider TBD
+- **Infrastructure**: Docker, GitHub Actions, Cloud Provider
 
 ## 🔐 Encryption Toolkit
 
