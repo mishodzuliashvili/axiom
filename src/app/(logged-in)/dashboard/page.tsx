@@ -17,6 +17,7 @@ import { getUserWithWorkspacesWithFiles } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { WorkspaceUserPermission } from "@/lib/generated/prisma";
 import WorkspaceCard from "./_components/WorkspaceCard";
+import FileRow from "./_components/FileRow";
 
 export default async function DashboardPage() {
   const user = await getUserWithWorkspacesWithFiles();
@@ -176,9 +177,7 @@ export default async function DashboardPage() {
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
                         Workspace
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                        Status
-                      </th>
+
                       <th className="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
                         Actions
                       </th>
@@ -187,39 +186,16 @@ export default async function DashboardPage() {
                   <tbody className="divide-y divide-gray-700">
                     {user.workspaces.flatMap((workspaceUser) =>
                       workspaceUser.workspace.files.map((file) => (
-                        <tr key={file.id} className="hover:bg-gray-750">
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="flex items-center">
-                              <div className="flex-shrink-0 h-8 w-8 rounded-md bg-blue-500/20 flex items-center justify-center">
-                                <FileText className="h-4 w-4 text-blue-400" />
-                              </div>
-                              <div className="ml-4">
-                                <div className="text-sm font-medium text-white">
-                                  {file.encryptedName}
-                                </div>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm text-gray-300">
-                              {workspaceUser.workspace.encryptedName}
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-500/10 text-blue-400">
-                              <Lock className="h-3 w-3 mr-1" />
-                              Encrypted
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                            <Link
-                              href={`/files/${file.id}`}
-                              className="text-blue-400 hover:text-blue-300"
-                            >
-                              Open
-                            </Link>
-                          </td>
-                        </tr>
+                        <FileRow
+                          key={file.id}
+                          file={file}
+                          encryptedWorkspaceSecretKey={
+                            workspaceUser.encryptedWorkspaceSecretKey
+                          }
+                          encryptedWorkspaceName={
+                            workspaceUser.workspace.encryptedName
+                          }
+                        />
                       ))
                     )}
                   </tbody>
