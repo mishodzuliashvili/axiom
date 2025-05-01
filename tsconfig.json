@@ -22,6 +22,6 @@
       "@/*": ["./src/*"]
     }
   },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts", "server.js", "server.mts", "server.js", "server.js", "server.js"],
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts", "server.js", "server.mts", "server.js", "server.js", "server.js", "src/app/_tests/logout.test.ts"],
   "exclude": ["node_modules"]
 }
