@@ -24,6 +24,8 @@ const createWorkspace = createServerAction(
               WorkspaceUserPermission.DELETE,
               WorkspaceUserPermission.MANAGE_USERS,
               WorkspaceUserPermission.VIEW,
+              WorkspaceUserPermission.CREATOR,
+              WorkspaceUserPermission.ADD,
             ],
           },
         },

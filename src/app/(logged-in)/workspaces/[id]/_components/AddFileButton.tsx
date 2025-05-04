@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Upload, FileText, X } from "lucide-react";
+import { Plus, Upload, FileText, X, SquareMIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { createNewFile } from "../_actions/createNewFile";
 import { getUserInfo } from "@/lib/clientUserStore";
@@ -9,6 +9,7 @@ import {
   decryptWithPrivateKey,
   encryptWithSymmetricKey,
 } from "@/lib/cryptoClientSide";
+import { FILE_TYPES, FileMetadata } from "@/lib/files";
 
 interface AddFileButtonProps {
   workspaceId: string;
@@ -29,7 +30,6 @@ export default function AddFileButton({
 
   const handleCreateFile = async (e: React.FormEvent) => {
     e.preventDefault();
-
     if (fileName.trim() === "") return;
 
     setIsCreating(true);
@@ -51,21 +51,23 @@ export default function AddFileButton({
       );
 
       const metadata = JSON.stringify({
-        originalType: "text/plain",
-        isBinary: false,
-      });
+        fileType: "MARKDOWN",
+      } as FileMetadata);
 
       const encryptedMetadata = await encryptWithSymmetricKey(
         metadata,
         secretKeyForWorkspace
       );
-
-      await createNewFile({
+      const res = await createNewFile({
         workspaceId,
         encryptedName,
         encryptedContent,
         encryptedMetadata,
       });
+
+      if (!res.success) {
+        throw new Error("Failed to upload file");
+      }
 
       setIsModalOpen(false);
       setFileName("");
@@ -78,34 +80,19 @@ export default function AddFileButton({
     }
   };
 
-  // Read file as ArrayBuffer to handle binary files like images
-  const readFileAsArrayBuffer = (file: File): Promise<ArrayBuffer> => {
+  const readFileAsText = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = () => {
-        if (reader.result instanceof ArrayBuffer) {
+        if (typeof reader.result === "string") {
           resolve(reader.result);
         } else {
-          reject(new Error("Failed to read file as ArrayBuffer"));
+          reject(new Error("Failed to read file as text"));
         }
       };
       reader.onerror = () => reject(reader.error);
-      reader.readAsArrayBuffer(file);
+      reader.readAsText(file);
     });
-  };
-
-  // Convert ArrayBuffer to Base64
-  const arrayBufferToBase64 = (buffer: ArrayBuffer): string => {
-    const bytes = new Uint8Array(buffer);
-    let binary = "";
-    const chunkSize = 65536; // Process in chunks to avoid call stack size exceeded
-
-    for (let i = 0; i < bytes.length; i += chunkSize) {
-      const chunk = bytes.slice(i, Math.min(i + chunkSize, bytes.length));
-      binary += String.fromCharCode.apply(null, Array.from(chunk));
-    }
-
-    return btoa(binary);
   };
 
   const handleFileUpload = async (e: React.FormEvent) => {
@@ -113,22 +100,26 @@ export default function AddFileButton({
 
     if (!uploadFile || fileName.trim() === "") return;
 
+    if (
+      !uploadFile.name
+        .toLowerCase()
+        .endsWith("." + FILE_TYPES.MARKDOWN.extension) &&
+      uploadFile.type !== FILE_TYPES.MARKDOWN.mimeType
+    ) {
+      alert("Please upload only Markdown (.md) files");
+      return;
+    }
+
     setIsCreating(true);
 
     try {
-      // Read file as ArrayBuffer instead of text to support binary files
-      const fileBuffer = await readFileAsArrayBuffer(uploadFile);
+      // Read file as text since we're only allowing markdown
+      const fileContent = await readFileAsText(uploadFile);
 
-      // Store file type for later use in metadata
-      const fileType = uploadFile.type;
-
-      // Create metadata object to store alongside content
-      const fileMetadata = JSON.stringify({
-        originalType: fileType,
-        originalName: uploadFile.name,
-        lastModified: uploadFile.lastModified,
-        isBinary: true,
-      });
+      // Create metadata object
+      const metadata = JSON.stringify({
+        fileType: "MARKDOWN",
+      } as FileMetadata);
 
       const userInfo = await getUserInfo();
       if (!userInfo) throw new Error("Something went wrong");
@@ -143,27 +134,28 @@ export default function AddFileButton({
         secretKeyForWorkspace
       );
 
-      // Convert buffer to base64 string
-      const base64Content = arrayBufferToBase64(fileBuffer);
-
-      // Encrypt file content (as base64 string)
+      // Encrypt file content
       const encryptedContent = await encryptWithSymmetricKey(
-        base64Content,
+        fileContent,
         secretKeyForWorkspace
       );
 
       // Encrypt metadata
       const encryptedMetadata = await encryptWithSymmetricKey(
-        fileMetadata,
+        metadata,
         secretKeyForWorkspace
       );
 
-      await createNewFile({
+      const res = await createNewFile({
         workspaceId,
         encryptedName,
         encryptedContent,
-        encryptedMetadata, // Pass metadata to the server
+        encryptedMetadata,
       });
+
+      if (!res.success) {
+        throw new Error("Failed to upload file");
+      }
 
       setIsModalOpen(false);
       setFileName("");
@@ -171,7 +163,7 @@ export default function AddFileButton({
       router.refresh();
     } catch (error) {
       console.error("Failed to upload file:", error);
-      alert(`Upload failed:`);
+      alert(`Upload failed: ${error}`);
     } finally {
       setIsCreating(false);
     }
@@ -184,7 +176,7 @@ export default function AddFileButton({
         className="inline-flex items-center justify-center px-4 py-2 rounded-lg text-sm font-medium text-white bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 transition-all duration-300 shadow-lg shadow-blue-700/30 hover:shadow-blue-700/50"
       >
         <Plus className="h-4 w-4 mr-2" />
-        Add File
+        Add Markdown File
       </button>
 
       {/* Modal */}
@@ -199,7 +191,12 @@ export default function AddFileButton({
             </button>
 
             <div className="px-6 py-4 border-b border-gray-700">
-              <h3 className="text-xl font-bold text-white">Add New File</h3>
+              <div className="flex items-center">
+                <SquareMIcon className="h-5 w-5 text-blue-400 mr-2" />
+                <h3 className="text-xl font-bold text-white">
+                  Add Markdown File
+                </h3>
+              </div>
             </div>
 
             <div className="px-6 py-4">
@@ -222,7 +219,7 @@ export default function AddFileButton({
                   }`}
                   onClick={() => setActiveTab("upload")}
                 >
-                  Upload File
+                  Upload Markdown
                 </button>
               </div>
 
@@ -235,15 +232,25 @@ export default function AddFileButton({
                     >
                       File Name
                     </label>
-                    <input
-                      type="text"
-                      id="fileName"
-                      value={fileName}
-                      onChange={(e) => setFileName(e.target.value)}
-                      className="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="Enter file name"
-                      required
-                    />
+                    <div className="flex items-center">
+                      <input
+                        type="text"
+                        id="fileName"
+                        value={fileName}
+                        onChange={(e) =>
+                          setFileName(e.target.value.replace(/\.[^/.]+$/, ""))
+                        }
+                        className="flex-1 bg-gray-900 border border-gray-700 rounded-l-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="Enter file name"
+                        required
+                      />
+                      <span className="bg-gray-700 text-gray-300 px-3 py-2 rounded-r-lg border border-gray-700 border-l-0">
+                        .md
+                      </span>
+                    </div>
+                    <p className="text-xs text-gray-400 mt-1">
+                      Markdown files only (.md)
+                    </p>
                   </div>
 
                   <div className="mb-4">
@@ -251,15 +258,18 @@ export default function AddFileButton({
                       htmlFor="fileContent"
                       className="block text-sm font-medium text-gray-300 mb-1"
                     >
-                      Content
+                      Content (Markdown)
                     </label>
                     <textarea
                       id="fileContent"
                       value={fileContent}
                       onChange={(e) => setFileContent(e.target.value)}
-                      className="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 h-40"
-                      placeholder="Enter file content"
+                      className="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 h-40 font-mono"
+                      placeholder="# Your Markdown Content Here"
                     />
+                    <p className="text-xs text-gray-400 mt-1">
+                      Use Markdown syntax for formatting
+                    </p>
                   </div>
 
                   <div className="flex justify-end">
@@ -275,7 +285,7 @@ export default function AddFileButton({
                       disabled={isCreating}
                       className="px-4 py-2 rounded-lg text-sm font-medium text-white bg-blue-600 hover:bg-blue-500 transition-colors disabled:opacity-50"
                     >
-                      {isCreating ? "Creating..." : "Create File"}
+                      {isCreating ? "Creating..." : "Create Markdown File"}
                     </button>
                   </div>
                 </form>
@@ -288,40 +298,51 @@ export default function AddFileButton({
                     >
                       File Name
                     </label>
-                    <input
-                      type="text"
-                      id="uploadFileName"
-                      value={fileName}
-                      onChange={(e) => setFileName(e.target.value)}
-                      className="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="Enter file name"
-                      required
-                    />
+                    <div className="flex items-center">
+                      <input
+                        type="text"
+                        id="uploadFileName"
+                        value={fileName}
+                        onChange={(e) => setFileName(e.target.value)}
+                        className="flex-1 bg-gray-900 border border-gray-700 rounded-l-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="Enter file name"
+                        required
+                      />
+                      <span className="bg-gray-700 text-gray-300 px-3 py-2 rounded-r-lg border border-gray-700 border-l-0">
+                        .md
+                      </span>
+                    </div>
+                    <p className="text-xs text-gray-400 mt-1">
+                      Markdown files only (.md)
+                    </p>
                   </div>
 
                   <div className="mb-4">
                     <label className="block text-sm font-medium text-gray-300 mb-1">
-                      Upload File
+                      Upload Markdown File
                     </label>
                     <div className="border-2 border-dashed border-gray-700 rounded-lg p-6 flex flex-col items-center">
-                      <Upload className="h-10 w-10 text-gray-500 mb-2" />
+                      <SquareMIcon className="h-10 w-10 text-gray-500 mb-2" />
                       <p className="text-sm text-gray-400 mb-2">
                         {uploadFile
                           ? `${uploadFile.name} (${(
                               uploadFile.size / 1024
                             ).toFixed(2)} KB)`
-                          : "Drag & drop a file or click to browse"}
+                          : "Drag & drop a markdown file or click to browse"}
                       </p>
                       <input
                         type="file"
                         className="hidden"
                         id="file-upload"
+                        accept=".md,text/markdown"
                         onChange={(e) => {
                           const file = e.target.files?.[0];
                           if (file) {
                             setUploadFile(file);
                             if (!fileName) {
-                              setFileName(file.name);
+                              // Remove .md extension for the input field
+                              const baseName = file.name.replace(/\.md$/, "");
+                              setFileName(baseName);
                             }
                           }
                         }}
@@ -332,6 +353,9 @@ export default function AddFileButton({
                       >
                         Browse Files
                       </label>
+                      <p className="text-xs text-gray-400 mt-2">
+                        Only .md files are supported
+                      </p>
                     </div>
                   </div>
 
@@ -348,7 +372,7 @@ export default function AddFileButton({
                       disabled={isCreating || !uploadFile}
                       className="px-4 py-2 rounded-lg text-sm font-medium text-white bg-blue-600 hover:bg-blue-500 transition-colors disabled:opacity-50"
                     >
-                      {isCreating ? "Uploading..." : "Upload File"}
+                      {isCreating ? "Uploading..." : "Upload Markdown"}
                     </button>
                   </div>
                 </form>

@@ -23,6 +23,7 @@ import {
   decryptWithSymmetricKey,
 } from "@/lib/cryptoClientSide";
 import { deleteFile } from "../_actions/deleteFile";
+import { FILE_TYPES, FileMetadata } from "@/lib/files";
 
 interface FilesListProps {
   files: PrismaFile[];
@@ -48,7 +49,7 @@ export default function FilesList({
     {
       name: string;
       id: string;
-      icon: Promise<JSX.Element>;
+      fileType: keyof typeof FILE_TYPES;
     }[]
   >([]);
   const handleEditClick = (file: any) => {
@@ -56,34 +57,6 @@ export default function FilesList({
     // setFileName(decryptFileName(file.encryptedName));
     // setEditingFileId(file.id);
     setOpenMenu(null);
-  };
-  const isBinaryFile = (fileName: string): boolean => {
-    const binaryExtensions = [
-      ".jpg",
-      ".jpeg",
-      ".png",
-      ".gif",
-      ".bmp",
-      ".pdf",
-      ".doc",
-      ".docx",
-      ".xls",
-      ".xlsx",
-      ".ppt",
-      ".pptx",
-      ".zip",
-      ".rar",
-      ".exe",
-      ".dll",
-      ".mp3",
-      ".mp4",
-      ".avi",
-      ".mov",
-      ".wav",
-    ];
-
-    const lowerFileName = fileName.toLowerCase();
-    return binaryExtensions.some((ext) => lowerFileName.endsWith(ext));
   };
 
   // Function to correctly download files, handling both text and binary files
@@ -102,10 +75,6 @@ export default function FilesList({
       const response = files.find((ff) => ff.id === fileId);
       if (!response) throw new Error("Failed to fetch file content");
 
-      // Check if we have metadata
-      let fileType = "text/plain";
-      let isBinary = false;
-
       if (response.encryptedMetadata) {
         try {
           // Decrypt metadata if it exists
@@ -115,71 +84,75 @@ export default function FilesList({
             "text"
           );
 
-          const metadata = JSON.parse(decryptedMetadata as string);
-          if (metadata.originalType) {
-            fileType = metadata.originalType;
+          const metadata = JSON.parse(
+            decryptedMetadata as string
+          ) as FileMetadata;
+
+          if (metadata.fileType === "MARKDOWN") {
+            const decryptedContent = await decryptWithSymmetricKey(
+              response.content,
+              secretKeyForWorkspace,
+              "text"
+            );
+            const mimeType = FILE_TYPES[metadata.fileType].mimeType;
+
+            const blob = new Blob([decryptedContent as string], {
+              type: mimeType,
+            });
+
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = fileName;
+            document.body.appendChild(a);
+            a.click();
+
+            setTimeout(() => {
+              URL.revokeObjectURL(url);
+              document.body.removeChild(a);
+            }, 100);
           }
-          isBinary = metadata.isBinary === true;
         } catch (error) {
           console.warn("Error parsing metadata, using defaults:", error);
         }
       }
 
       // For binary files, we need special handling
-      if (isBinary) {
-        // First decrypt the content (it should be base64 encoded)
-        const decryptedBase64 = (await decryptWithSymmetricKey(
-          response.content,
-          secretKeyForWorkspace,
-          "text"
-        )) as string;
+      // if (isBinary) {
+      //   // First decrypt the content (it should be base64 encoded)
+      //   const decryptedBase64 = (await decryptWithSymmetricKey(
+      //     response.content,
+      //     secretKeyForWorkspace,
+      //     "text"
+      //   )) as string;
 
-        // Convert base64 back to binary data
-        const binaryString = atob(decryptedBase64);
-        const bytes = new Uint8Array(binaryString.length);
-        for (let i = 0; i < binaryString.length; i++) {
-          bytes[i] = binaryString.charCodeAt(i);
-        }
+      //   // Convert base64 back to binary data
+      //   const binaryString = atob(decryptedBase64);
+      //   const bytes = new Uint8Array(binaryString.length);
+      //   for (let i = 0; i < binaryString.length; i++) {
+      //     bytes[i] = binaryString.charCodeAt(i);
+      //   }
 
-        // Create blob with binary data
-        const blob = new Blob([bytes], { type: fileType });
+      //   // Create blob with binary data
+      //   const blob = new Blob([bytes], { type: fileType });
 
-        // Download the file
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = fileName;
-        document.body.appendChild(a);
-        a.click();
+      //   // Download the file
+      //   const url = URL.createObjectURL(blob);
+      //   const a = document.createElement("a");
+      //   a.href = url;
+      //   a.download = fileName;
+      //   document.body.appendChild(a);
+      //   a.click();
 
-        // Clean up
-        setTimeout(() => {
-          URL.revokeObjectURL(url);
-          document.body.removeChild(a);
-        }, 100);
-      } else {
-        // For text files, use the original method
-        const decryptedContent = await decryptWithSymmetricKey(
-          response.content,
-          secretKeyForWorkspace,
-          "text"
-        );
+      //   // Clean up
+      //   setTimeout(() => {
+      //     URL.revokeObjectURL(url);
+      //     document.body.removeChild(a);
+      //   }, 100);
+      // } else {
+      //   // For text files, use the original method
 
-        const blob = new Blob([decryptedContent as string], { type: fileType });
-
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = fileName;
-        document.body.appendChild(a);
-        a.click();
-
-        // Clean up
-        setTimeout(() => {
-          URL.revokeObjectURL(url);
-          document.body.removeChild(a);
-        }, 100);
-      }
+      // }
 
       setOpenMenu(null);
     } catch (error) {
@@ -225,34 +198,7 @@ export default function FilesList({
     }
   };
 
-  const getFileIcon = async (name: string) => {
-    if (
-      name.endsWith(".doc") ||
-      name.endsWith(".docx") ||
-      name.endsWith(".txt")
-    ) {
-      return <FileText className="h-5 w-5 text-blue-400" />;
-    } else if (
-      name.endsWith(".xls") ||
-      name.endsWith(".xlsx") ||
-      name.endsWith(".csv") ||
-      name.endsWith(".sheet")
-    ) {
-      return <FileSpreadsheet className="h-5 w-5 text-green-400" />;
-    } else if (
-      name.endsWith(".jpg") ||
-      name.endsWith(".png") ||
-      name.endsWith(".gif") ||
-      name.endsWith(".svg")
-    ) {
-      return <FileImage className="h-5 w-5 text-purple-400" />;
-    } else {
-      return <FileText className="h-5 w-5 text-gray-400" />;
-    }
-  };
-
   useEffect(() => {
-    console.log("Amazing");
     (async () => {
       const userInfo = await getUserInfo();
       if (!userInfo) throw new Error("Somethign went wrong");
@@ -266,18 +212,24 @@ export default function FilesList({
             f.encryptedName,
             secretKeyForWorkspace
           );
+
+          const dMetadata = await decryptWithSymmetricKey(
+            f.encryptedMetadata,
+            secretKeyForWorkspace
+          );
+          const metadata = JSON.parse(dMetadata as string) as FileMetadata;
+
           return {
             name: dName as string,
             id: f.id,
-            icon: getFileIcon((dName as any).toLowerCase()),
+            // icon: ,
+            fileType: metadata.fileType,
           };
         })
       );
       setAllFiles(allFiles);
     })();
   }, []);
-
-  console.log(allFiles);
 
   return (
     <div className="grid grid-cols-1 gap-4">
@@ -288,7 +240,7 @@ export default function FilesList({
         >
           <div className="flex items-center">
             <div className="w-10 h-10 rounded-lg bg-blue-500/20 flex items-center justify-center mr-3">
-              {file.icon}
+              {FILE_TYPES[file.fileType].icon("h-5 w-5")}
             </div>
 
             <div>
@@ -324,7 +276,7 @@ export default function FilesList({
                   href={`/files/${file.id}`}
                   className="font-semibold text-white hover:text-blue-300 transition-colors"
                 >
-                  {file.name}
+                  {file.name}.{FILE_TYPES[file.fileType].extension}
                 </Link>
               )}
               <div className="text-xs text-gray-400 flex items-center mt-1">
@@ -358,7 +310,7 @@ export default function FilesList({
                     Open
                   </Link>
 
-                  {canEdit && (
+                  {/* {canEdit && (
                     <button
                       onClick={() => handleEditClick(file)}
                       className="flex items-center px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 w-full text-left"
@@ -366,7 +318,7 @@ export default function FilesList({
                       <Pencil className="h-4 w-4 mr-2" />
                       Rename
                     </button>
-                  )}
+                  )} */}
 
                   <button
                     onClick={() => handleDownloadFile(file.id, file.name)}
