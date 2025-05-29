@@ -74,32 +74,13 @@ We use a hybrid encryption model combining RSA-OAEP for key exchange and AES-GCM
 **Security Flow Diagrams**
 We have documented the security flows for core operations. These diagrams illustrate how encryption is integrated at every step:
 
-<div style="margin: 30px 0;">
-  <h4 style="text-align: center; color: #666; margin-bottom: 20px;">Authentication and Security Flows</h4>
-  <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 30px;">
-    <a href="/capstone_reports/april/flows/registration.svg" target="_blank" style="text-decoration: none; color: inherit;">
-      <div style="text-align: center; background: rgba(128, 128, 128, 0.1); padding: 20px; border-radius: 8px; border: 1px solid rgba(128, 128, 128, 0.3); transition: transform 0.2s; cursor: pointer;">
-        <img src="/capstone_reports/april/flows/registration.svg" alt="Registration Flow" style="width: 100%; height: 200px; object-fit: contain;">
-        <p style="margin-top: 10px; font-weight: 600; color: #666;">Registration Flow</p>
-        <p style="font-size: 14px; color: #888;">Client-side key generation</p>
-      </div>
-    </a>
-    <a href="/capstone_reports/april/flows/login.svg" target="_blank" style="text-decoration: none; color: inherit;">
-      <div style="text-align: center; background: rgba(128, 128, 128, 0.1); padding: 20px; border-radius: 8px; border: 1px solid rgba(128, 128, 128, 0.3); transition: transform 0.2s; cursor: pointer;">
-        <img src="/capstone_reports/april/flows/login.svg" alt="Login Flow" style="width: 100%; height: 200px; object-fit: contain;">
-        <p style="margin-top: 10px; font-weight: 600; color: #666;">Login Flow</p>
-        <p style="font-size: 14px; color: #888;">Encrypted token verification</p>
-      </div>
-    </a>
-    <a href="/capstone_reports/april/flows/create-workspace.svg" target="_blank" style="text-decoration: none; color: inherit;">
-      <div style="text-align: center; background: rgba(128, 128, 128, 0.1); padding: 20px; border-radius: 8px; border: 1px solid rgba(128, 128, 128, 0.3); transition: transform 0.2s; cursor: pointer;">
-        <img src="/capstone_reports/april/flows/create-workspace.svg" alt="Create Workspace Flow" style="width: 100%; height: 200px; object-fit: contain;">
-        <p style="margin-top: 10px; font-weight: 600; color: #666;">Workspace Creation</p>
-        <p style="font-size: 14px; color: #888;">AES key generation & distribution</p>
-      </div>
-    </a>
-  </div>
-</div>
+#### Authentication and Security Flows
+
+| Flow | Description | Diagram |
+|------|-------------|---------|
+| **Registration Flow** | Client-side key generation | ![Registration Flow](/capstone_reports/april/flows/registration.svg) |
+| **Login Flow** | Encrypted token verification | ![Login Flow](/capstone_reports/april/flows/login.svg) |
+| **Workspace Creation** | AES key generation & distribution | ![Create Workspace Flow](/capstone_reports/april/flows/create-workspace.svg) |
 
 **Example: Login Flow Implementation**
 The login process demonstrates our security model. Users provide their username and private key. The server returns an encrypted JWT token that can only be decrypted with the user's private key:
@@ -110,8 +91,8 @@ const { encryptedToken, publicKey, userId } = response.data;
 
 // Client decrypts with private key
 const decryptedToken = await decryptWithPrivateKey(
-  encryptedToken,
-  privateKey
+        encryptedToken,
+        privateKey
 );
 
 // Verification ensures proper authentication
@@ -127,87 +108,29 @@ This approach ensures that even authentication tokens remain encrypted and inacc
 
 We have implemented a clean, intuitive interface for all core features:
 
-<div style="margin: 30px 0;">
-  <h4 style="text-align: center; color: #666; margin-bottom: 20px;">User Interface Screenshots</h4>
+#### User Interface Screenshots
 
-  <!-- Registration Process -->
-  <div style="background: rgba(128, 128, 128, 0.05); padding: 30px; border-radius: 12px; margin-bottom: 30px; border: 1px solid rgba(128, 128, 128, 0.2);">
-    <h5 style="color: #555; margin-bottom: 20px;">Registration Process</h5>
-    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
-      <a href="/capstone_reports/april/images/registration-step-1.png" target="_blank" style="text-decoration: none; color: inherit;">
-        <div style="text-align: center; background: rgba(128, 128, 128, 0.08); padding: 15px; border-radius: 8px; border: 1px solid rgba(128, 128, 128, 0.2); transition: transform 0.2s; cursor: pointer;">
-          <img src="/capstone_reports/april/images/registration-step-1.png" alt="Registration Step 1" 
-               style="width: 100%; border-radius: 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.15);">
-          <p style="margin-top: 10px; font-weight: 600; color: #666;">Step 1: Username Entry</p>
-          <p style="font-size: 14px; color: #888;">Simple registration with username only</p>
-        </div>
-      </a>
-      <a href="/capstone_reports/april/images/registration-step-2.png" target="_blank" style="text-decoration: none; color: inherit;">
-        <div style="text-align: center; background: rgba(128, 128, 128, 0.08); padding: 15px; border-radius: 8px; border: 1px solid rgba(128, 128, 128, 0.2); transition: transform 0.2s; cursor: pointer;">
-          <img src="/capstone_reports/april/images/registration-step-2.png" alt="Registration Step 2" 
-               style="width: 100%; border-radius: 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.15);">
-          <p style="margin-top: 10px; font-weight: 600; color: #666;">Step 2: Key Generation</p>
-          <p style="font-size: 14px; color: #888;">Client-side RSA key pair creation</p>
-        </div>
-      </a>
-    </div>
-    <div style="text-align: center; margin-top: 20px;">
-      <a href="/capstone_reports/april/images/download-credentials.png" target="_blank" style="text-decoration: none; color: inherit;">
-        <div style="display: inline-block; background: rgba(128, 128, 128, 0.08); padding: 15px; border-radius: 8px; border: 1px solid rgba(128, 128, 128, 0.2); transition: transform 0.2s; cursor: pointer;">
-          <img src="/capstone_reports/april/images/download-credentials.png" alt="Download Credentials" 
-               style="width: 100%; max-width: 500px; border-radius: 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.15);">
-          <p style="margin-top: 10px; font-weight: 600; color: #666;">Credential Download</p>
-          <p style="font-size: 14px; color: #888;">Secure private key storage with clear warnings</p>
-        </div>
-      </a>
-    </div>
-  </div>
+**Registration Process**
 
-  <!-- Workspace Management -->
-  <div style="background: rgba(128, 128, 128, 0.05); padding: 30px; border-radius: 12px; margin-bottom: 30px; border: 1px solid rgba(128, 128, 128, 0.2);">
-    <h5 style="color: #555; margin-bottom: 20px;">Workspace Management</h5>
-    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
-      <a href="/capstone_reports/april/images/create-workspace.png" target="_blank" style="text-decoration: none; color: inherit;">
-        <div style="text-align: center; background: rgba(128, 128, 128, 0.08); padding: 15px; border-radius: 8px; border: 1px solid rgba(128, 128, 128, 0.2); transition: transform 0.2s; cursor: pointer;">
-          <img src="/capstone_reports/april/images/create-workspace.png" alt="Create Workspace" 
-               style="width: 100%; border-radius: 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.15);">
-          <p style="margin-top: 10px; font-weight: 600; color: #666;">Workspace Creation</p>
-          <p style="font-size: 14px; color: #888;">Simple interface for new workspaces</p>
-        </div>
-      </a>
-      <a href="/capstone_reports/april/images/manage-workspace.png" target="_blank" style="text-decoration: none; color: inherit;">
-        <div style="text-align: center; background: rgba(128, 128, 128, 0.08); padding: 15px; border-radius: 8px; border: 1px solid rgba(128, 128, 128, 0.2); transition: transform 0.2s; cursor: pointer;">
-          <img src="/capstone_reports/april/images/manage-workspace.png" alt="Manage Workspace" 
-               style="width: 100%; border-radius: 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.15);">
-          <p style="margin-top: 10px; font-weight: 600; color: #666;">Workspace Dashboard</p>
-          <p style="font-size: 14px; color: #888;">File management and collaboration</p>
-        </div>
-      </a>
-      <a href="/capstone_reports/april/images/upload-file.png" target="_blank" style="text-decoration: none; color: inherit;">
-        <div style="text-align: center; background: rgba(128, 128, 128, 0.08); padding: 15px; border-radius: 8px; border: 1px solid rgba(128, 128, 128, 0.2); transition: transform 0.2s; cursor: pointer;">
-          <img src="/capstone_reports/april/images/upload-file.png" alt="File Upload" 
-               style="width: 100%; border-radius: 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.15);">
-          <p style="margin-top: 10px; font-weight: 600; color: #666;">File Upload</p>
-        </div>
-      </a>
-    </div>
-  </div>
+| Screenshot | Description |
+|------------|-------------|
+| ![Registration Step 1](/capstone_reports/april/images/registration-step-1.png) | **Step 1: Username Entry** - Simple registration with username only |
+| ![Registration Step 2](/capstone_reports/april/images/registration-step-2.png) | **Step 2: Key Generation** - Client-side RSA key pair creation |
+| ![Download Credentials](/capstone_reports/april/images/download-credentials.png) | **Credential Download** - Secure private key storage with clear warnings |
 
-  <!-- User and File Management -->
-  <div style="background: rgba(128, 128, 128, 0.05); padding: 30px; border-radius: 12px; border: 1px solid rgba(128, 128, 128, 0.2);">
-    <h5 style="color: #555; margin-bottom: 20px;">Collaboration Features</h5>
-    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
-      <a href="/capstone_reports/april/images/manage-users.png" target="_blank" style="text-decoration: none; color: inherit;">
-        <div style="text-align: center; background: rgba(128, 128, 128, 0.08); padding: 15px; border-radius: 8px; border: 1px solid rgba(128, 128, 128, 0.2); transition: transform 0.2s; cursor: pointer;">
-          <img src="/capstone_reports/april/images/manage-users.png" alt="Manage Users" 
-               style="width: 100%; border-radius: 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.15);">
-          <p style="margin-top: 10px; font-weight: 600; color: #666;">User Management</p>
-          <p style="font-size: 14px; color: #888;">Invite and manage team members</p>
-        </div>
-      </a>
-    </div>
-  </div>
-</div>
+**Workspace Management**
+
+| Screenshot | Description |
+|------------|-------------|
+| ![Create Workspace](/capstone_reports/april/images/create-workspace.png) | **Workspace Creation** - Simple interface for new workspaces |
+| ![Manage Workspace](/capstone_reports/april/images/manage-workspace.png) | **Workspace Dashboard** - File management and collaboration |
+| ![File Upload](/capstone_reports/april/images/upload-file.png) | **File Upload** - Uploading markdown files to workspace |
+
+**Collaboration Features**
+
+| Screenshot | Description |
+|------------|-------------|
+| ![Manage Users](/capstone_reports/april/images/manage-users.png) | **User Management** - Invite and manage team members |
 
 ---
 
@@ -237,9 +160,7 @@ Files are stored directly in database columns (no block storage yet). Each file 
 
 ### 3.3 Database Schema Visual
 
-<div style="background-color: #eee; padding: 1em; border-radius: 8px;">
-  <img src="/capstone_reports/april/images/erd.svg" alt="ERD">
-</div>
+![ERD](/capstone_reports/april/images/erd.svg)
 
 **WorkspaceUserPermission Enum:**
 ```prisma
