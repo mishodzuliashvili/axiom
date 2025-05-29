@@ -83,6 +83,7 @@ We have documented the security flows for core operations. These diagrams illust
 | **Workspace Creation**    | AES key generation & distribution   | ![Create Workspace Flow](/capstone_reports/april/flows/create-workspace.svg)             |
 | **User Invitation**       | Secure workspace key sharing        | ![Invite User Flow](/capstone_reports/april/flows/invite-user.svg)                       |
 | **Collaborative Editing** | Real-time encrypted synchronization | ![Markdown Collaboration Flow](/capstone_reports/april/flows/markdown-collaboration.svg) |
+
 **Example: Login Flow Implementation**
 The login process demonstrates our security model. Users provide their username and private key. The server returns an encrypted JWT token that can only be decrypted with the user's private key:
 
