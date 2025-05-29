@@ -76,10 +76,10 @@ We have documented the security flows for core operations. These diagrams illust
 
 #### Authentication and Security Flows
 
-| Flow | Description | Diagram |
-|------|-------------|---------|
-| **Registration Flow** | Client-side key generation | ![Registration Flow](/capstone_reports/april/flows/registration.svg) |
-| **Login Flow** | Encrypted token verification | ![Login Flow](/capstone_reports/april/flows/login.svg) |
+| Flow                   | Description                       | Diagram                                                                      |
+|------------------------|-----------------------------------|------------------------------------------------------------------------------|
+| **Registration Flow**  | Client-side key generation        | ![Registration Flow](/capstone_reports/april/flows/registration.svg)         |
+| **Login Flow**         | Encrypted token verification      | ![Login Flow](/capstone_reports/april/flows/login.svg)                       |
 | **Workspace Creation** | AES key generation & distribution | ![Create Workspace Flow](/capstone_reports/april/flows/create-workspace.svg) |
 
 **Example: Login Flow Implementation**
@@ -112,26 +112,26 @@ We have implemented a clean, intuitive interface for all core features:
 
 **Registration Process**
 
-| Screenshot | Description |
-|------------|-------------|
-| ![Registration Step 1](/capstone_reports/april/images/registration-step-1.png) | **Step 1: Username Entry** - Simple registration with username only |
-| ![Registration Step 2](/capstone_reports/april/images/registration-step-2.png) | **Step 2: Key Generation** - Client-side RSA key pair creation |
+| Screenshot                                                                       | Description                                                              |
+|----------------------------------------------------------------------------------|--------------------------------------------------------------------------|
+| ![Registration Step 1](/capstone_reports/april/images/registration-step-1.png)   | **Step 1: Username Entry** - Simple registration with username only      |
+| ![Registration Step 2](/capstone_reports/april/images/registration-step-2.png)   | **Step 2: Key Generation** - Client-side RSA key pair creation           |
 | ![Download Credentials](/capstone_reports/april/images/download-credentials.png) | **Credential Download** - Secure private key storage with clear warnings |
 
 **Workspace Management**
 
-| Screenshot | Description |
-|------------|-------------|
+| Screenshot                                                               | Description                                                  |
+|--------------------------------------------------------------------------|--------------------------------------------------------------|
 | ![Create Workspace](/capstone_reports/april/images/create-workspace.png) | **Workspace Creation** - Simple interface for new workspaces |
-| ![Manage Workspace](/capstone_reports/april/images/manage-workspace.png) | **Workspace Dashboard** - File management and collaboration |
-| ![File Upload](/capstone_reports/april/images/upload-file.png) | **File Upload** - Uploading markdown files to workspace |
+| ![Manage Workspace](/capstone_reports/april/images/manage-workspace.png) | **Workspace Dashboard** - File management and collaboration  |
+| ![File Upload](/capstone_reports/april/images/upload-file.png)           | **File Upload** - Uploading markdown files to workspace      |
 
 **Collaboration Features**
 
-| Screenshot | Description |
-|------------|-------------|
-| ![Manage Users](/capstone_reports/april/images/manage-users.png) | **User Management** - Invite and manage team members |
-
+| Screenshot                                                                   | Description                                                                      |
+|------------------------------------------------------------------------------|----------------------------------------------------------------------------------|
+| ![Manage Users](/capstone_reports/april/images/manage-users.png)             | **User Management** - Invite and manage team members                             |
+| ![Live Collaboration](/capstone_reports/april/images/edit-file-multiple.png) | **Live Collaboration** - Multiple users editing the same document simultaneously |
 ---
 
 ## 3. Current Development Status
