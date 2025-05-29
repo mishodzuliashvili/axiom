@@ -76,12 +76,13 @@ We have documented the security flows for core operations. These diagrams illust
 
 #### Authentication and Security Flows
 
-| Flow                   | Description                       | Diagram                                                                      |
-|------------------------|-----------------------------------|------------------------------------------------------------------------------|
-| **Registration Flow**  | Client-side key generation        | ![Registration Flow](/capstone_reports/april/flows/registration.svg)         |
-| **Login Flow**         | Encrypted token verification      | ![Login Flow](/capstone_reports/april/flows/login.svg)                       |
-| **Workspace Creation** | AES key generation & distribution | ![Create Workspace Flow](/capstone_reports/april/flows/create-workspace.svg) |
-
+| Flow                      | Description                         | Diagram                                                                                  |
+|---------------------------|-------------------------------------|------------------------------------------------------------------------------------------|
+| **Registration Flow**     | Client-side key generation          | ![Registration Flow](/capstone_reports/april/flows/registration.svg)                     |
+| **Login Flow**            | Encrypted token verification        | ![Login Flow](/capstone_reports/april/flows/login.svg)                                   |
+| **Workspace Creation**    | AES key generation & distribution   | ![Create Workspace Flow](/capstone_reports/april/flows/create-workspace.svg)             |
+| **User Invitation**       | Secure workspace key sharing        | ![Invite User Flow](/capstone_reports/april/flows/invite-user.svg)                       |
+| **Collaborative Editing** | Real-time encrypted synchronization | ![Markdown Collaboration Flow](/capstone_reports/april/flows/markdown-collaboration.svg) |
 **Example: Login Flow Implementation**
 The login process demonstrates our security model. Users provide their username and private key. The server returns an encrypted JWT token that can only be decrypted with the user's private key:
 
