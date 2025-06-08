@@ -1,20 +1,35 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import {
   ContentSendMessage,
   CursorSendMessage,
   ReceivedMessage,
 } from "../../../../../../websockets/types";
 import { getUsernames } from "../_actions/getUsernames";
+import { updateFileContent } from "../_actions/documentActions";
 import {
   decryptWithSymmetricKey,
   encryptWithSymmetricKey,
 } from "@/lib/cryptoClientSide";
-import { parse } from "path";
 
 interface CursorPosition {
   userId: string;
   position: number;
   timestamp: number;
+  selectionEnd?: number;
+}
+
+interface Operation {
+  type: "insert" | "delete";
+  position: number;
+  content?: string;
+  length?: number;
+  clientId: string;
+  version: number;
+}
+
+interface PendingOperation {
+  operation: Operation;
+  originalOperation: Operation;
 }
 
 export default function MarkdownEditor({
@@ -33,439 +48,479 @@ export default function MarkdownEditor({
   const [iAmLeader, setIAmLeader] = useState(false);
   const [usernames, setUsernames] = useState<{ [key: string]: string }>({});
   const [cursors, setCursors] = useState<{ [key: string]: CursorPosition }>({});
-  const previousLengthRef = useRef(0);
-  const selectionRef = useRef({ start: 0, end: 0 });
 
-  const handleBeforeInput = (e: any) => {
-    const textarea = textAreaRef.current;
-    if (textarea) {
-      selectionRef.current = {
-        start: textarea.selectionStart,
-        end: textarea.selectionEnd,
-      };
+  const [content, setContent] = useState(fileContent);
+  const [serverVersion, setServerVersion] = useState(0);
+  const [pendingOperations, setPendingOperations] = useState<PendingOperation[]>([]);
+  const [acknowledgingOperations, setAcknowledgingOperations] = useState<PendingOperation[]>([]);
+
+  const updateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const pendingUpdateRef = useRef<Operation | null>(null);
+  const lastSavedContentRef = useRef(fileContent);
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const clientIdRef = useRef(`${userId}-${Date.now()}`);
+  const isComposingRef = useRef(false);
+
+  const transformOperation = (op1: Operation, op2: Operation): Operation => {
+    if (op1.type === "insert" && op2.type === "insert") {
+      if (op1.position < op2.position || (op1.position === op2.position && op1.clientId < op2.clientId)) {
+        return { ...op1 };
+      } else {
+        return { ...op1, position: op1.position + (op2.content?.length || 0) };
+      }
+    } else if (op1.type === "insert" && op2.type === "delete") {
+      if (op1.position <= op2.position) {
+        return { ...op1 };
+      } else if (op1.position > op2.position + (op2.length || 0)) {
+        return { ...op1, position: op1.position - (op2.length || 0) };
+      } else {
+        return { ...op1, position: op2.position };
+      }
+    } else if (op1.type === "delete" && op2.type === "insert") {
+      if (op1.position < op2.position) {
+        return { ...op1 };
+      } else {
+        return { ...op1, position: op1.position + (op2.content?.length || 0) };
+      }
+    } else if (op1.type === "delete" && op2.type === "delete") {
+      if (op1.position < op2.position) {
+        return { ...op1 };
+      } else if (op1.position >= op2.position + (op2.length || 0)) {
+        return { ...op1, position: op1.position - (op2.length || 0) };
+      } else {
+        const newPosition = op2.position;
+        const overlap = Math.min(
+            op1.position + (op1.length || 0),
+            op2.position + (op2.length || 0)
+        ) - op1.position;
+        return { ...op1, position: newPosition, length: (op1.length || 0) - overlap };
+      }
     }
+    return op1;
   };
 
-  const handleContentChange = async () => {
-    if (!textAreaRef.current) return;
-    const newContent = textAreaRef.current.value;
-    const cursorPosition = textAreaRef.current.selectionStart || 0;
+  const transformCursor = (cursor: number, op: Operation): number => {
+    if (op.type === "insert") {
+      if (cursor <= op.position) {
+        return cursor;
+      } else {
+        return cursor + (op.content?.length || 0);
+      }
+    } else if (op.type === "delete") {
+      if (cursor <= op.position) {
+        return cursor;
+      } else if (cursor > op.position + (op.length || 0)) {
+        return cursor - (op.length || 0);
+      } else {
+        return op.position;
+      }
+    }
+    return cursor;
+  };
 
-    const { start, end } = selectionRef.current;
-    console.log(start, end, "start and end");
-    const replacedLength = end - start;
-    const insertedText = newContent.substring(start, cursorPosition);
+  const applyOperation = (text: string, op: Operation): string => {
+    if (op.type === "insert") {
+      return text.slice(0, op.position) + (op.content || "") + text.slice(op.position);
+    } else if (op.type === "delete") {
+      return text.slice(0, op.position) + text.slice(op.position + (op.length || 0));
+    }
+    return text;
+  };
 
-    if (replacedLength > 0) {
+  const sendOperation = useCallback(async (operation: Operation) => {
+    if (socketRef.current?.readyState === WebSocket.OPEN) {
       const message = {
-        type: "replace",
-        position: start,
-        replacedLength,
-        content: insertedText,
+        operation,
+        clientId: clientIdRef.current,
       };
 
       const encryptedMessage = await encryptWithSymmetricKey(
-        JSON.stringify(message),
-        secretKeyForWorkspace
+          JSON.stringify(message),
+          secretKeyForWorkspace
       );
 
-      if (socketRef.current?.readyState === WebSocket.OPEN) {
-        socketRef.current.send(
+      socketRef.current.send(
           JSON.stringify({
             type: "content",
             encryptedMessage,
           } as ContentSendMessage)
-        );
-      }
-    } else if (newContent.length > previousLengthRef.current) {
-      const insertionPosition =
-        cursorPosition - (newContent.length - previousLengthRef.current);
+      );
+    }
+  }, [secretKeyForWorkspace]);
 
-      const message = {
+  const flushPendingUpdate = useCallback(async () => {
+    if (pendingUpdateRef.current) {
+      const operation = pendingUpdateRef.current;
+      pendingUpdateRef.current = null;
+
+      setPendingOperations(prev => [...prev, {
+        operation,
+        originalOperation: { ...operation }
+      }]);
+
+      await sendOperation(operation);
+    }
+  }, [sendOperation]);
+
+  const handleTextChange = useCallback((newText: string, _: number) => {
+    const currentText = content;
+
+    if (newText === currentText) return;
+
+    let operation: Operation | null = null;
+
+    if (newText.length > currentText.length) {
+      const insertPos = findInsertPosition(currentText, newText);
+      const insertedContent = newText.substring(insertPos, insertPos + (newText.length - currentText.length));
+
+      operation = {
         type: "insert",
-        position: insertionPosition,
-        content: newContent.substring(insertionPosition, cursorPosition),
+        position: insertPos,
+        content: insertedContent,
+        clientId: clientIdRef.current,
+        version: serverVersion,
       };
+    } else if (newText.length < currentText.length) {
+      const deletePos = findDeletePosition(currentText, newText);
 
-      if (textAreaRef.current) textAreaRef.current.value = newContent;
-
-      const encryptedMessage = await encryptWithSymmetricKey(
-        JSON.stringify(message),
-        secretKeyForWorkspace
-      );
-
-      if (socketRef.current?.readyState === WebSocket.OPEN) {
-        socketRef.current.send(
-          JSON.stringify({
-            type: "content",
-            encryptedMessage,
-          } as ContentSendMessage)
-        );
-      }
-    } else if (newContent.length < previousLengthRef.current) {
-      const deletionPosition = cursorPosition;
-      const deletionLength = previousLengthRef.current - newContent.length;
-
-      const message = {
+      operation = {
         type: "delete",
-        position: deletionPosition,
-        length: deletionLength,
+        position: deletePos,
+        length: currentText.length - newText.length,
+        clientId: clientIdRef.current,
+        version: serverVersion,
       };
-
-      if (textAreaRef.current) textAreaRef.current.value = newContent;
-
-      const encryptedMessage = await encryptWithSymmetricKey(
-        JSON.stringify(message),
-        secretKeyForWorkspace
-      );
-
-      if (socketRef.current?.readyState === WebSocket.OPEN) {
-        socketRef.current.send(
-          JSON.stringify({
-            type: "content",
-            encryptedMessage,
-          } as ContentSendMessage)
-        );
-      }
     }
-    previousLengthRef.current = newContent.length; // Update previousLength
-    handleCursorChange();
+
+    if (operation) {
+      setContent(newText);
+
+      if (updateTimeoutRef.current) {
+        clearTimeout(updateTimeoutRef.current);
+      }
+
+      if (pendingUpdateRef.current) {
+        if (pendingUpdateRef.current.type === operation.type &&
+            pendingUpdateRef.current.type === "insert" &&
+            operation.type === "insert" &&
+            pendingUpdateRef.current.position + pendingUpdateRef.current.content!.length === operation.position) {
+          pendingUpdateRef.current.content += operation.content!;
+        } else if (pendingUpdateRef.current.type === operation.type &&
+            pendingUpdateRef.current.type === "delete" &&
+            operation.type === "delete" &&
+            operation.position + operation.length! === pendingUpdateRef.current.position) {
+          pendingUpdateRef.current.position = operation.position;
+          pendingUpdateRef.current.length! += operation.length!;
+        } else {
+          void flushPendingUpdate();
+          pendingUpdateRef.current = operation;
+        }
+      } else {
+        pendingUpdateRef.current = operation;
+      }
+
+      updateTimeoutRef.current = setTimeout(() => {
+        void flushPendingUpdate();
+      }, 100);
+    }
+  }, [content, serverVersion, flushPendingUpdate]);
+
+  const findInsertPosition = (oldText: string, newText: string): number => {
+    let i = 0;
+    while (i < oldText.length && oldText[i] === newText[i]) i++;
+    return i;
   };
 
-  const calculateCursorCoordinates = (position: number) => {
-    if (!textAreaRef.current) return { top: 0, left: 0 };
-
-    const textarea = textAreaRef.current;
-    const style = window.getComputedStyle(textarea);
-    const text = textarea.value;
-
-    const mirror = document.createElement("div");
-
-    // Mirror styling
-    mirror.style.position = "absolute";
-    mirror.style.top = "0";
-    mirror.style.left = "-9999px";
-    mirror.style.whiteSpace = "pre-wrap";
-    mirror.style.wordWrap = "break-word";
-    mirror.style.overflowWrap = "break-word";
-    mirror.style.visibility = "hidden";
-
-    // Copy styles that affect layout
-    const properties = [
-      "fontFamily",
-      "fontSize",
-      "fontWeight",
-      "fontStyle",
-      "letterSpacing",
-      "textTransform",
-      "wordSpacing",
-      "textIndent",
-      "boxSizing",
-      "borderLeftWidth",
-      "borderRightWidth",
-      "borderTopWidth",
-      "borderBottomWidth",
-      "paddingTop",
-      "paddingRight",
-      "paddingBottom",
-      "paddingLeft",
-      "lineHeight",
-      "width",
-    ];
-    properties.forEach((prop) => {
-      mirror.style[prop as any] = style[prop as any];
-    });
-
-    // Copy text before cursor
-    const textBefore = document.createTextNode(text.substring(0, position));
-    const marker = document.createElement("span");
-    marker.textContent = "\u200b"; // zero-width space for measurement
-    mirror.appendChild(textBefore);
-    mirror.appendChild(marker);
-
-    document.body.appendChild(mirror);
-    const markerRect = marker.getBoundingClientRect();
-    const mirrorRect = mirror.getBoundingClientRect();
-    document.body.removeChild(mirror);
-
-    const top = markerRect.top - mirrorRect.top - textarea.scrollTop;
-    const left = markerRect.left - mirrorRect.left - textarea.scrollLeft;
-
-    return { top, left };
+  const findDeletePosition = (oldText: string, newText: string): number => {
+    let i = 0;
+    while (i < newText.length && oldText[i] === newText[i]) i++;
+    return i;
   };
 
-  // Handle cursor position changes
-  const handleCursorChange = async () => {
+  const handleCursorChange = useCallback(async () => {
     if (!textAreaRef.current) return;
 
     const position = textAreaRef.current.selectionStart;
+    const selectionEnd = textAreaRef.current.selectionEnd;
+
     const cursorData = {
       position,
+      selectionEnd: selectionEnd !== position ? selectionEnd : undefined,
       timestamp: Date.now(),
     };
 
-    // Only send if socket is connected
     if (socketRef.current?.readyState === WebSocket.OPEN) {
       const encryptedMessage = await encryptWithSymmetricKey(
-        JSON.stringify(cursorData),
-        secretKeyForWorkspace
+          JSON.stringify(cursorData),
+          secretKeyForWorkspace
       );
       socketRef.current.send(
-        JSON.stringify({
-          type: "cursor",
-          encryptedMessage,
-        } as CursorSendMessage)
+          JSON.stringify({
+            type: "cursor",
+            encryptedMessage,
+          } as CursorSendMessage)
       );
     }
-  };
+  }, [secretKeyForWorkspace]);
 
-  useEffect(() => {
-    if (textAreaRef.current) {
-      textAreaRef.current.value = fileContent;
-      previousLengthRef.current = fileContent.length;
+  const saveToDatabase = useCallback(async () => {
+    if (!iAmLeader || content === lastSavedContentRef.current) return;
+
+    try {
+      const result = await updateFileContent({ fileId, content: await encryptWithSymmetricKey(content, secretKeyForWorkspace) });
+      if (result.success) {
+        console.log("File saved successfully");
+        lastSavedContentRef.current = content;
+      } else {
+        console.error("Failed to save file:", result.error);
+      }
+    } catch (error) {
+      console.error("Error saving file:", error);
     }
-  }, [textAreaRef]);
+  }, [iAmLeader, content, fileId]);
 
   useEffect(() => {
-    // TODO: if user is leader then update the file in db with some interval
-  }, [iAmLeader]);
+    setContent(fileContent);
+    lastSavedContentRef.current = fileContent;
+  }, [fileContent]);
+
+  useEffect(() => {
+    if (iAmLeader && content !== lastSavedContentRef.current) {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+      saveTimeoutRef.current = setTimeout(() => {
+        void saveToDatabase();
+      }, 3000);
+    }
+
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+    };
+  }, [content, iAmLeader, saveToDatabase]);
+
+  const handleSocketMessage = useCallback(async (event: MessageEvent) => {
+    try {
+      const message: ReceivedMessage = JSON.parse(event.data);
+
+      if (message.type === "you-are-leader") {
+        setIAmLeader(true);
+      } else if (message.type === "users-list") {
+        const currentUsernames = await (async () => {
+          const stored: { [key: string]: string } = {};
+          const newUserIdsThatNeedToBeFetched = message.usersList.filter(
+              (uid) => !usernames[uid]
+          );
+
+          message.usersList.forEach((uid) => {
+            stored[uid] = usernames[uid] || uid;
+          });
+
+          if (newUserIdsThatNeedToBeFetched.length > 0) {
+            const res = await getUsernames({
+              userIds: newUserIdsThatNeedToBeFetched,
+            });
+            if (res.success) {
+              res.data.forEach((user) => {
+                stored[user.id] = user.username;
+              });
+            }
+          }
+          return stored;
+        })();
+
+        setUsernames(currentUsernames);
+
+        setCursors(prevCursors => {
+          const filteredCursors: { [key: string]: CursorPosition } = {};
+          Object.keys(prevCursors).forEach((uid) => {
+            if (message.usersList.includes(uid)) {
+              filteredCursors[uid] = prevCursors[uid];
+            }
+          });
+          return filteredCursors;
+        });
+      } else if (message.type === "cursor" && message.userId !== userId) {
+        try {
+          const decryptedData = (await decryptWithSymmetricKey(
+              message.encryptedMessage,
+              secretKeyForWorkspace
+          )) as string;
+          const cursorData = JSON.parse(decryptedData);
+          setCursors((prevCursors) => ({
+            ...prevCursors,
+            [message.userId]: {
+              userId: message.userId,
+              position: cursorData.position,
+              selectionEnd: cursorData.selectionEnd,
+              timestamp: cursorData.timestamp,
+            },
+          }));
+        } catch (error) {
+          console.error("Failed to decrypt cursor message:", error);
+        }
+      } else if (message.type === "content") {
+        try {
+          const decryptedContent = (await decryptWithSymmetricKey(
+              message.encryptedMessage,
+              secretKeyForWorkspace
+          )) as string;
+          const { operation, clientId } = JSON.parse(decryptedContent);
+
+          if (clientId === clientIdRef.current) {
+            setPendingOperations(prev => {
+              const acknowledgedOp = prev[0];
+              if (acknowledgedOp) {
+                setAcknowledgingOperations(ack => [...ack, acknowledgedOp]);
+                return prev.slice(1);
+              }
+              return prev;
+            });
+            setServerVersion(message.version);
+          } else {
+            let transformedOp = { ...operation, version: message.version };
+
+            setPendingOperations(currentPending => {
+              currentPending.forEach(pending => {
+                transformedOp = transformOperation(transformedOp, pending.operation);
+                pending.operation = transformOperation(pending.operation, operation);
+              });
+              return currentPending;
+            });
+
+            setContent(prevContent => applyOperation(prevContent, transformedOp));
+            setServerVersion(message.version);
+
+            setCursors(prevCursors => {
+              const newCursors = { ...prevCursors };
+              Object.keys(newCursors).forEach(uid => {
+                if (uid !== message.userId) {
+                  newCursors[uid] = {
+                    ...newCursors[uid],
+                    position: transformCursor(newCursors[uid].position, transformedOp),
+                    selectionEnd: newCursors[uid].selectionEnd
+                        ? transformCursor(newCursors[uid].selectionEnd, transformedOp)
+                        : undefined,
+                  };
+                }
+              });
+              return newCursors;
+            });
+
+            if (textAreaRef.current && !isComposingRef.current) {
+              const cursorPos = textAreaRef.current.selectionStart;
+              const selectionEnd = textAreaRef.current.selectionEnd;
+              const newCursorPos = transformCursor(cursorPos, transformedOp);
+              const newSelectionEnd = transformCursor(selectionEnd, transformedOp);
+
+              requestAnimationFrame(() => {
+                if (textAreaRef.current && !isComposingRef.current) {
+                  textAreaRef.current.setSelectionRange(newCursorPos, newSelectionEnd);
+                }
+              });
+            }
+
+            if (iAmLeader) {
+              if (saveTimeoutRef.current) {
+                clearTimeout(saveTimeoutRef.current);
+              }
+              saveTimeoutRef.current = setTimeout(() => {
+                saveToDatabase();
+              }, 3000);
+            }
+          }
+        } catch (error) {
+          console.error("Failed to decrypt content message:", error);
+        }
+      }
+    } catch (error) {
+      console.error("Failed to parse message:", error);
+    }
+  }, [userId, usernames, secretKeyForWorkspace]);
 
   useEffect(() => {
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
     const socket = new WebSocket(
-      `${protocol}//${window.location.host}/api/websocket?fileId=${fileId}`
+        `${protocol}//${window.location.host}/api/websocket?fileId=${fileId}`
     );
     socketRef.current = socket;
 
-    socket.addEventListener("open", () => {
-      socket.addEventListener("message", async (event) => {
-        try {
-          const message: ReceivedMessage = JSON.parse(event.data);
-          if (message.type === "you-are-leader") {
-            setIAmLeader(true);
-          } else if (message.type === "users-list") {
-            const newUsernames: { [key: string]: string } = {};
+    const handleOpen = () => {
+      console.log("WebSocket connection opened");
+    };
 
-            const userIdsThatNeedToBeFetched = message.usersList.filter(
-              (userId) => !usernames[userId]
-            );
-            message.usersList.forEach((userId) => {
-              newUsernames[userId] = usernames[userId] || userId;
-            });
-
-            if (userIdsThatNeedToBeFetched.length > 0) {
-              const res = await getUsernames({
-                userIds: userIdsThatNeedToBeFetched,
-              });
-              if (res.success) {
-                res.data.forEach((user) => {
-                  newUsernames[user.id] = user.username;
-                });
-              }
-            }
-
-            const filteredCursors: { [key: string]: CursorPosition } = {};
-            Object.keys(cursors).forEach((userId) => {
-              if (message.usersList.includes(userId)) {
-                filteredCursors[userId] = cursors[userId];
-              }
-            });
-            setCursors(filteredCursors);
-            setUsernames(newUsernames);
-          } else if (message.type === "cursor") {
-            if (message.userId !== userId) {
-              try {
-                const decryptedData = (await decryptWithSymmetricKey(
-                  message.encryptedMessage,
-                  secretKeyForWorkspace
-                )) as string;
-                const cursorData = JSON.parse(decryptedData);
-                setCursors((prevCursors) => ({
-                  ...prevCursors,
-                  [message.userId]: {
-                    userId: message.userId,
-                    position: cursorData.position,
-                    timestamp: cursorData.timestamp,
-                  },
-                }));
-              } catch (error) {
-                console.error("Failed to decrypt cursor message:", error);
-              }
-            }
-          } else if (message.type === "content") {
-            if (message.userId !== userId) {
-              try {
-                const decryptedContent = (await decryptWithSymmetricKey(
-                  message.encryptedMessage,
-                  secretKeyForWorkspace
-                )) as string;
-                const parsedContent = JSON.parse(decryptedContent);
-                if (parsedContent.type === "insert") {
-                  if (textAreaRef.current) {
-                    const textarea = textAreaRef.current;
-                    const currentContent = textarea.value;
-                    const cursorPosition = textarea.selectionStart;
-
-                    // Calculate the new content
-                    const newContent =
-                      currentContent.slice(0, parsedContent.position) +
-                      parsedContent.content +
-                      currentContent.slice(parsedContent.position);
-
-                    // Calculate new cursor position
-                    let newCursorPosition = cursorPosition;
-                    if (parsedContent.position <= cursorPosition) {
-                      newCursorPosition =
-                        cursorPosition + parsedContent.content.length;
-                    }
-
-                    // Update the textarea value directly
-                    textAreaRef.current.value = newContent;
-
-                    // Restore cursor position
-                    textarea.focus();
-                    textarea.setSelectionRange(
-                      newCursorPosition,
-                      newCursorPosition
-                    );
-
-                    handleCursorChange();
-                  }
-                } else if (parsedContent.type === "delete") {
-                  if (textAreaRef.current) {
-                    const textarea = textAreaRef.current;
-                    const currentContent = textarea.value;
-                    const cursorPosition = textarea.selectionStart;
-
-                    // Calculate the new content after deletion
-                    const newContent =
-                      currentContent.slice(0, parsedContent.position) +
-                      currentContent.slice(
-                        parsedContent.position + parsedContent.length
-                      );
-
-                    // Calculate new cursor position
-                    let newCursorPosition = cursorPosition;
-                    if (parsedContent.position < cursorPosition) {
-                      // If deletion happens before cursor, adjust cursor position
-                      newCursorPosition = Math.max(
-                        parsedContent.position,
-                        cursorPosition - parsedContent.length
-                      );
-                    }
-
-                    // Update the textarea value directly
-                    textAreaRef.current.value = newContent;
-
-                    // Restore cursor position
-                    textarea.focus();
-                    textarea.setSelectionRange(
-                      newCursorPosition,
-                      newCursorPosition
-                    );
-
-                    handleCursorChange();
-                  }
-                } else if (parsedContent.type === "replace") {
-                  if (textAreaRef.current) {
-                    const textarea = textAreaRef.current;
-                    const currentContent = textarea.value;
-                    const cursorPosition = textarea.selectionStart;
-
-                    // Calculate the new content
-                    const newContent =
-                      currentContent.slice(0, parsedContent.position) +
-                      parsedContent.content +
-                      currentContent.slice(
-                        parsedContent.position + parsedContent.replacedLength
-                      );
-
-                    // Calculate new cursor position
-                    let newCursorPosition = cursorPosition;
-                    if (parsedContent.position <= cursorPosition) {
-                      newCursorPosition =
-                        cursorPosition +
-                        parsedContent.content.length -
-                        parsedContent.replacedLength;
-                    }
-
-                    // Update the textarea value directly
-                    textAreaRef.current.value = newContent;
-
-                    // Restore cursor position
-                    textarea.focus();
-                    textarea.setSelectionRange(
-                      newCursorPosition,
-                      newCursorPosition
-                    );
-
-                    handleCursorChange();
-                  }
-                }
-              } catch (error) {
-                console.error("Failed to decrypt content message:", error);
-              }
-            }
-          }
-        } catch (error) {
-          console.error("Failed to parse message:", error);
-        }
-      });
-    });
-
-    socket.addEventListener("error", (error) => {
+    const handleError = (error: Event) => {
       console.error("WebSocket error:", error);
-    });
+    };
 
-    socket.addEventListener("close", () => {
+    const handleClose = () => {
       console.log("WebSocket connection closed");
-    });
+      if (iAmLeader && content !== lastSavedContentRef.current) {
+        void saveToDatabase();
+      }
+    };
+
+    socket.addEventListener("open", handleOpen);
+    socket.addEventListener("message", handleSocketMessage);
+    socket.addEventListener("error", handleError);
+    socket.addEventListener("close", handleClose);
 
     return () => {
-      if (socketRef.current?.readyState === WebSocket.OPEN) {
-        socketRef.current.close();
+      if (updateTimeoutRef.current) {
+        clearTimeout(updateTimeoutRef.current);
+      }
+      void flushPendingUpdate();
+
+      socket.removeEventListener("open", handleOpen);
+      socket.removeEventListener("message", handleSocketMessage);
+      socket.removeEventListener("error", handleError);
+      socket.removeEventListener("close", handleClose);
+
+      if (socket.readyState === WebSocket.OPEN) {
+        socket.close();
       }
     };
   }, []);
 
-  // Set up event listeners for cursor tracking
   useEffect(() => {
     const textarea = textAreaRef.current;
     if (!textarea) return;
 
-    // Track cursor positions
+    const handleInput = (e: Event) => {
+      const target = e.target as HTMLTextAreaElement;
+      handleTextChange(target.value, target.selectionStart || 0);
+    };
+
+    const handleCompositionStart = () => {
+      isComposingRef.current = true;
+    };
+
+    const handleCompositionEnd = (e: CompositionEvent) => {
+      isComposingRef.current = false;
+      const target = e.target as HTMLTextAreaElement;
+      handleTextChange(target.value, target.selectionStart || 0);
+    };
+
+    textarea.addEventListener("input", handleInput);
+    textarea.addEventListener("compositionstart", handleCompositionStart);
+    textarea.addEventListener("compositionend", handleCompositionEnd);
     textarea.addEventListener("click", handleCursorChange);
     textarea.addEventListener("keyup", handleCursorChange);
     textarea.addEventListener("focus", handleCursorChange);
+    textarea.addEventListener("select", handleCursorChange);
 
     return () => {
+      textarea.removeEventListener("input", handleInput);
+      textarea.removeEventListener("compositionstart", handleCompositionStart);
+      textarea.removeEventListener("compositionend", handleCompositionEnd);
       textarea.removeEventListener("click", handleCursorChange);
       textarea.removeEventListener("keyup", handleCursorChange);
       textarea.removeEventListener("focus", handleCursorChange);
+      textarea.removeEventListener("select", handleCursorChange);
     };
-  }, []);
-
-  //   useEffect(() => {
-  //     const interval = setInterval(() => {
-  //       const now = Date.now();
-  //       setCursors((prevCursors) => {
-  //         const newCursors = { ...prevCursors };
-  //         let hasChanged = false;
-
-  //         Object.entries(newCursors).forEach(([key, cursor]) => {
-  //           if (now - cursor.timestamp > 10000) {
-  //             // 10 seconds
-  //             delete newCursors[key];
-  //             hasChanged = true;
-  //           }
-  //         });
-
-  //         return hasChanged ? newCursors : prevCursors;
-  //       });
-  //     }, 5000); // Check every 5 seconds
-
-  //     return () => clearInterval(interval);
-  //   }, []);
+  }, [handleTextChange, handleCursorChange]);
 
   const stringToColor = (str: string) => {
     let hash = 60;
@@ -476,101 +531,120 @@ export default function MarkdownEditor({
     return `hsl(${hue}, 90%, 35%)`;
   };
 
+  const calculateCursorCoordinates = (position: number) => {
+    if (!textAreaRef.current) return { top: 0, left: 0 };
+
+    const textarea = textAreaRef.current;
+    const textBeforeCursor = content.substring(0, position);
+    const lines = textBeforeCursor.split('\n');
+    const currentLine = lines.length - 1;
+    const currentColumn = lines[lines.length - 1].length;
+
+    const lineHeight = parseInt(window.getComputedStyle(textarea).lineHeight);
+    const padding = parseInt(window.getComputedStyle(textarea).paddingTop);
+
+    const charWidth = 8.4;
+
+    const top = padding + currentLine * lineHeight - textarea.scrollTop;
+    const left = padding + currentColumn * charWidth - textarea.scrollLeft;
+
+    return { top, left };
+  };
+
   return (
-    <div>
       <div>
         {iAmLeader && (
-          <div className="bg-green-500 text-white p-2 rounded-md mb-4">
-            You are the leader of this file. So you will automatically save file
-            to db.
-          </div>
+            <div className="bg-green-500 text-white p-2 rounded-md mb-4">
+              You are the leader of this file. Your changes will be automatically saved.
+            </div>
         )}
-      </div>
-      {/* show usernames who is joiuned */}
-      {Object.keys(usernames).length > 0 && (
-        <div className=" p-2 rounded-md mb-4">
-          <h3 className="text-lg font-semibold">Users in the room:</h3>
-          <div className="list-disc flex flex-wrap gap-3 py-2">
-            {Object.keys(usernames).map((userId) => {
-              return (
-                <div
-                  key={userId}
-                  className="text-white px-4 rounded-md py-1"
-                  style={{
-                    backgroundColor: stringToColor(userId),
-                  }}
-                >
-                  {usernames[userId]} : {cursors[userId]?.position || 0}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-      <div className="relative">
+
+        {Object.keys(usernames).length > 0 && (
+            <div className="p-2 rounded-md mb-4">
+              <h3 className="text-lg font-semibold">Active users:</h3>
+              <div className="flex flex-wrap gap-3 py-2">
+                {Object.entries(usernames).map(([uid, username]) => (
+                    <div
+                        key={uid}
+                        className="text-white px-4 rounded-md py-1"
+                        style={{ backgroundColor: stringToColor(uid) }}
+                    >
+                      {username}
+                    </div>
+                ))}
+              </div>
+            </div>
+        )}
+
+        <div className="relative">
         <textarea
-          ref={textAreaRef}
-          //   value={content}
-          onBeforeInput={handleBeforeInput}
-          onChange={handleContentChange}
-          className="w-full h-96 p-4 focus:outline-none bg-gray-900"
-          placeholder="Start typing your markdown content..."
+            ref={textAreaRef}
+            value={content}
+            onChange={() => {}}
+            className="w-full h-96 p-4 focus:outline-none bg-gray-900 font-mono"
+            placeholder="Start typing your markdown content..."
+            spellCheck={false}
         />
 
-        {/* Render other users' cursors */}
-        {Object.values(cursors).map((cursor) => {
-          if (!textAreaRef.current) return null;
+          {Object.entries(cursors).map(([uid, cursor]) => {
+            if (uid === userId || !textAreaRef.current) return null;
 
-          // Calculate visual position
-          const { top, left } = calculateCursorCoordinates(cursor.position);
+            const { top, left } = calculateCursorCoordinates(cursor.position);
+            const isVisible = top >= 0 && left >= 0 &&
+                top <= textAreaRef.current.clientHeight &&
+                left <= textAreaRef.current.clientWidth;
 
-          // Only show cursors that are within the visible area
-          const isVisible =
-            top >= 0 &&
-            left >= 0 &&
-            top <= textAreaRef.current.clientHeight &&
-            left <= textAreaRef.current.clientWidth;
+            if (!isVisible) return null;
 
-          if (!isVisible) return null;
+            const cursorColor = stringToColor(uid);
 
-          // Generate a stable but unique color for each user
+            return (
+                <div key={uid}>
+                  <div
+                      className="absolute pointer-events-none"
+                      style={{
+                        top: `${top}px`,
+                        left: `${left}px`,
+                        zIndex: 10,
+                      }}
+                  >
+                    <div
+                        className="absolute bottom-0 left-0 text-white text-xs px-2 py-0.5 rounded shadow-sm"
+                        style={{
+                          whiteSpace: "nowrap",
+                          backgroundColor: cursorColor,
+                          transform: "translateY(-100%)",
+                        }}
+                    >
+                      {usernames[uid] || uid}
+                    </div>
+                    <div
+                        className="w-0.5 h-5"
+                        style={{
+                          backgroundColor: cursorColor,
+                          animation: "pulse 1.5s infinite",
+                        }}
+                    />
+                  </div>
 
-          const cursorColor = stringToColor(cursor.userId);
-
-          return (
-            <div
-              key={cursor.userId}
-              className="absolute pointer-events-none"
-              style={{
-                top: `${top}px`,
-                left: `${left}px`,
-                zIndex: 10,
-              }}
-            >
-              {/* Username label */}
-              <div
-                className="absolute bottom-0 left-0 text-white  px-2 py-0.5 rounded shadow-sm"
-                style={{
-                  whiteSpace: "nowrap",
-                  backgroundColor: cursorColor,
-                  transform: "translateY(-100%)",
-                }}
-              >
-                {usernames[cursor.userId] || cursor.userId}
-              </div>
-
-              {/* Cursor line */}
-              <div
-                className="w-0.5 h-5 animate-pulse"
-                style={{
-                  backgroundColor: cursorColor,
-                  animation: "pulse 1.5s infinite",
-                }}
-              ></div>
-            </div>
-          );
-        })}
+                  {cursor.selectionEnd && cursor.selectionEnd !== cursor.position && (
+                      <div
+                          className="absolute pointer-events-none"
+                          style={{
+                            top: `${calculateCursorCoordinates(Math.min(cursor.position, cursor.selectionEnd)).top}px`,
+                            left: `${calculateCursorCoordinates(Math.min(cursor.position, cursor.selectionEnd)).left}px`,
+                            width: `${Math.abs(calculateCursorCoordinates(cursor.selectionEnd).left - calculateCursorCoordinates(cursor.position).left)}px`,
+                            height: `${parseInt(window.getComputedStyle(textAreaRef.current).lineHeight)}px`,
+                            backgroundColor: cursorColor,
+                            opacity: 0.3,
+                            zIndex: 9,
+                          }}
+                      />
+                  )}
+                </div>
+            );
+          })}
+        </div>
       </div>
-    </div>
   );
 }
