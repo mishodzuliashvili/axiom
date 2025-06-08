@@ -16,8 +16,6 @@ import getCaretCoordinates from "textarea-caret"
 interface CursorPosition {
   userId: string;
   position: number;
-  left: number;
-  top: number;
   timestamp: number;
   selectionEnd?: number;
 }
@@ -35,6 +33,106 @@ interface PendingOperation {
   operation: Operation;
   originalOperation: Operation;
 }
+
+const stringToColor = (str: string) => {
+  let hash = 60;
+  for (let i = 0; i < str.length; i++) {
+    hash = str.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const hue = hash % 360;
+  return `hsl(${hue}, 90%, 35%)`;
+};
+
+const transformStrategies = {
+  "insert-insert": (op1: Operation, op2: Operation) => {
+    if (op1.position < op2.position || (op1.position === op2.position && op1.clientId < op2.clientId)) {
+      return { ...op1 };
+    } else {
+      return { ...op1, position: op1.position + (op2.content?.length || 0) };
+    }
+  },
+  "insert-delete": (op1: Operation, op2: Operation) => {
+    if (op1.position <= op2.position) {
+      return { ...op1 };
+    } else if (op1.position > op2.position + (op2.length || 0)) {
+      return { ...op1, position: op1.position - (op2.length || 0) };
+    } else {
+      return { ...op1, position: op2.position };
+    }
+  },
+  "delete-insert": (op1: Operation, op2: Operation) => {
+    if (op1.position < op2.position) {
+      return { ...op1 };
+    } else {
+      return { ...op1, position: op1.position + (op2.content?.length || 0) };
+    }
+  },
+  "delete-delete": (op1: Operation, op2: Operation) => {
+    if (op1.position < op2.position) {
+      return { ...op1 };
+    } else if (op1.position >= op2.position + (op2.length || 0)) {
+      return { ...op1, position: op1.position - (op2.length || 0) };
+    } else {
+      const newPosition = op2.position;
+      const overlap = Math.min(
+          op1.position + (op1.length || 0),
+          op2.position + (op2.length || 0)
+      ) - op1.position;
+      return { ...op1, position: newPosition, length: (op1.length || 0) - overlap };
+    }
+  }
+};
+
+const transformOperation = (op1: Operation, op2: Operation): Operation => {
+  const key = `${op1.type}-${op2.type}` as keyof typeof transformStrategies;
+  return transformStrategies[key](op1, op2);
+};
+
+const cursorTransformStrategies = {
+  insert: (cursor: number, op: Operation) => {
+    if (cursor <= op.position) {
+      return cursor;
+    } else {
+      return cursor + (op.content?.length || 0);
+    }
+  },
+  delete: (cursor: number, op: Operation) => {
+    if (cursor <= op.position) {
+      return cursor;
+    } else if (cursor > op.position + (op.length || 0)) {
+      return cursor - (op.length || 0);
+    } else {
+      return op.position;
+    }
+  }
+};
+
+const transformCursor = (cursor: number, op: Operation): number => {
+  return cursorTransformStrategies[op.type](cursor, op);
+};
+
+const operationAppliers = {
+  insert: (text: string, op: Operation) =>
+      text.slice(0, op.position) + (op.content || "") + text.slice(op.position),
+  delete: (text: string, op: Operation) =>
+      text.slice(0, op.position) + text.slice(op.position + (op.length || 0))
+};
+
+const applyOperation = (text: string, op: Operation): string => {
+  return operationAppliers[op.type](text, op);
+};
+
+const findInsertPosition = (oldText: string, newText: string): number => {
+  let i = 0;
+  while (i < oldText.length && oldText[i] === newText[i]) i++;
+  return i;
+};
+
+const findDeletePosition = (oldText: string, newText: string): number => {
+  let i = 0;
+  while (i < newText.length && oldText[i] === newText[i]) i++;
+  return i;
+};
 
 export default function MarkdownEditor({
   userId,
@@ -64,72 +162,6 @@ export default function MarkdownEditor({
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const clientIdRef = useRef(`${userId}-${Date.now()}`);
   const isComposingRef = useRef(false);
-
-  const transformOperation = (op1: Operation, op2: Operation): Operation => {
-    if (op1.type === "insert" && op2.type === "insert") {
-      if (op1.position < op2.position || (op1.position === op2.position && op1.clientId < op2.clientId)) {
-        return { ...op1 };
-      } else {
-        return { ...op1, position: op1.position + (op2.content?.length || 0) };
-      }
-    } else if (op1.type === "insert" && op2.type === "delete") {
-      if (op1.position <= op2.position) {
-        return { ...op1 };
-      } else if (op1.position > op2.position + (op2.length || 0)) {
-        return { ...op1, position: op1.position - (op2.length || 0) };
-      } else {
-        return { ...op1, position: op2.position };
-      }
-    } else if (op1.type === "delete" && op2.type === "insert") {
-      if (op1.position < op2.position) {
-        return { ...op1 };
-      } else {
-        return { ...op1, position: op1.position + (op2.content?.length || 0) };
-      }
-    } else if (op1.type === "delete" && op2.type === "delete") {
-      if (op1.position < op2.position) {
-        return { ...op1 };
-      } else if (op1.position >= op2.position + (op2.length || 0)) {
-        return { ...op1, position: op1.position - (op2.length || 0) };
-      } else {
-        const newPosition = op2.position;
-        const overlap = Math.min(
-            op1.position + (op1.length || 0),
-            op2.position + (op2.length || 0)
-        ) - op1.position;
-        return { ...op1, position: newPosition, length: (op1.length || 0) - overlap };
-      }
-    }
-    return op1;
-  };
-
-  const transformCursor = (cursor: number, op: Operation): number => {
-    if (op.type === "insert") {
-      if (cursor <= op.position) {
-        return cursor;
-      } else {
-        return cursor + (op.content?.length || 0);
-      }
-    } else if (op.type === "delete") {
-      if (cursor <= op.position) {
-        return cursor;
-      } else if (cursor > op.position + (op.length || 0)) {
-        return cursor - (op.length || 0);
-      } else {
-        return op.position;
-      }
-    }
-    return cursor;
-  };
-
-  const applyOperation = (text: string, op: Operation): string => {
-    if (op.type === "insert") {
-      return text.slice(0, op.position) + (op.content || "") + text.slice(op.position);
-    } else if (op.type === "delete") {
-      return text.slice(0, op.position) + text.slice(op.position + (op.length || 0));
-    }
-    return text;
-  };
 
   const sendOperation = useCallback(async (operation: Operation) => {
     if (socketRef.current?.readyState === WebSocket.OPEN) {
@@ -229,18 +261,6 @@ export default function MarkdownEditor({
     }
   }, [content, serverVersion, flushPendingUpdate]);
 
-  const findInsertPosition = (oldText: string, newText: string): number => {
-    let i = 0;
-    while (i < oldText.length && oldText[i] === newText[i]) i++;
-    return i;
-  };
-
-  const findDeletePosition = (oldText: string, newText: string): number => {
-    let i = 0;
-    while (i < newText.length && oldText[i] === newText[i]) i++;
-    return i;
-  };
-
   const handleCursorChange = useCallback(async () => {
     if (!textAreaRef.current) return;
 
@@ -248,12 +268,8 @@ export default function MarkdownEditor({
     const selectionEnd = textAreaRef.current.selectionEnd;
     console.log("Sending out cursor position", position);
 
-    const {top, left} = getCaretCoordinates(textAreaRef.current, position)
     const cursorData = {
       position,
-      left: left,
-      top: top,
-
       selectionEnd: selectionEnd !== position ? selectionEnd : undefined,
       timestamp: Date.now(),
     };
@@ -286,7 +302,7 @@ export default function MarkdownEditor({
     } catch (error) {
       console.error("Error saving file:", error);
     }
-  }, [iAmLeader, content, fileId]);
+  }, [iAmLeader, content, fileId, secretKeyForWorkspace]);
 
   useEffect(() => {
     setContent(fileContent);
@@ -310,61 +326,59 @@ export default function MarkdownEditor({
     };
   }, [content, iAmLeader, saveToDatabase]);
 
-  const handleSocketMessage = useCallback(async (event: MessageEvent) => {
-    try {
-      const message: ReceivedMessage = JSON.parse(event.data);
+  const messageHandlers = {
+    "you-are-leader": () => {
+      setIAmLeader(true);
+    },
+    "users-list": async (message: any) => {
+      const currentUsernames = await (async () => {
+        const stored: { [key: string]: string } = {};
+        const newUserIdsThatNeedToBeFetched = message.usersList.filter(
+            (uid: string) => !usernames[uid]
+        );
 
-      if (message.type === "you-are-leader") {
-        setIAmLeader(true);
-      } else if (message.type === "users-list") {
-        const currentUsernames = await (async () => {
-          const stored: { [key: string]: string } = {};
-          const newUserIdsThatNeedToBeFetched = message.usersList.filter(
-              (uid) => !usernames[uid]
-          );
-
-          message.usersList.forEach((uid) => {
-            stored[uid] = usernames[uid] || uid;
-          });
-
-          if (newUserIdsThatNeedToBeFetched.length > 0) {
-            const res = await getUsernames({
-              userIds: newUserIdsThatNeedToBeFetched,
-            });
-            if (res.success) {
-              res.data.forEach((user) => {
-                stored[user.id] = user.username;
-              });
-            }
-          }
-          return stored;
-        })();
-
-        setUsernames(currentUsernames);
-
-        setCursors(prevCursors => {
-          const filteredCursors: { [key: string]: CursorPosition } = {};
-          Object.keys(prevCursors).forEach((uid) => {
-            if (message.usersList.includes(uid)) {
-              filteredCursors[uid] = prevCursors[uid];
-            }
-          });
-          return filteredCursors;
+        message.usersList.forEach((uid: string) => {
+          stored[uid] = usernames[uid] || uid;
         });
-      } else if (message.type === "cursor" && message.userId !== userId) {
+
+        if (newUserIdsThatNeedToBeFetched.length > 0) {
+          const res = await getUsernames({
+            userIds: newUserIdsThatNeedToBeFetched,
+          });
+          if (res.success) {
+            res.data.forEach((user) => {
+              stored[user.id] = user.username;
+            });
+          }
+        }
+        return stored;
+      })();
+
+      setUsernames(currentUsernames);
+
+      setCursors(prevCursors => {
+        const filteredCursors: { [key: string]: CursorPosition } = {};
+        Object.keys(prevCursors).forEach((uid) => {
+          if (message.usersList.includes(uid)) {
+            filteredCursors[uid] = prevCursors[uid];
+          }
+        });
+        return filteredCursors;
+      });
+    },
+    "cursor": async (message: any) => {
+      if (message.userId !== userId) {
         try {
           const decryptedData = (await decryptWithSymmetricKey(
               message.encryptedMessage,
               secretKeyForWorkspace
           )) as string;
           const cursorData = JSON.parse(decryptedData);
-          console.log('cursor data received', cursorData.position, cursorData.left, cursorData.top)
+
           setCursors((prevCursors) => ({
             ...prevCursors,
             [message.userId]: {
               userId: message.userId,
-              left: cursorData.left,
-              top: cursorData.top,
               position: cursorData.position,
               selectionEnd: cursorData.selectionEnd,
               timestamp: cursorData.timestamp,
@@ -373,79 +387,90 @@ export default function MarkdownEditor({
         } catch (error) {
           console.error("Failed to decrypt cursor message:", error);
         }
-      } else if (message.type === "content") {
-        try {
-          const decryptedContent = (await decryptWithSymmetricKey(
-              message.encryptedMessage,
-              secretKeyForWorkspace
-          )) as string;
-          const { operation, clientId } = JSON.parse(decryptedContent);
+      }
+    },
+    "content": async (message: any) => {
+      try {
+        const decryptedContent = (await decryptWithSymmetricKey(
+            message.encryptedMessage,
+            secretKeyForWorkspace
+        )) as string;
+        const { operation, clientId } = JSON.parse(decryptedContent);
 
-          if (clientId === clientIdRef.current) {
-            setPendingOperations(prev => {
-              const acknowledgedOp = prev[0];
-              if (acknowledgedOp) {
-                setAcknowledgingOperations(ack => [...ack, acknowledgedOp]);
-                return prev.slice(1);
-              }
-              return prev;
-            });
-            setServerVersion(message.version);
-          } else {
-            let transformedOp = { ...operation, version: message.version };
-
-            setPendingOperations(currentPending => {
-              currentPending.forEach(pending => {
-                transformedOp = transformOperation(transformedOp, pending.operation);
-                pending.operation = transformOperation(pending.operation, operation);
-              });
-              return currentPending;
-            });
-
-            setContent(prevContent => applyOperation(prevContent, transformedOp));
-            setServerVersion(message.version);
-
-            setCursors(prevCursors => {
-              const newCursors = { ...prevCursors };
-              Object.keys(newCursors).forEach(uid => {
-                if (uid !== message.userId) {
-                  newCursors[uid] = {
-                    ...newCursors[uid],
-                    position: transformCursor(newCursors[uid].position, transformedOp),
-                    selectionEnd: newCursors[uid].selectionEnd
-                        ? transformCursor(newCursors[uid].selectionEnd, transformedOp)
-                        : undefined,
-                  };
-                }
-              });
-              return newCursors;
-            });
-
-            if (textAreaRef.current && !isComposingRef.current) {
-              const cursorPos = textAreaRef.current.selectionStart;
-              const selectionEnd = textAreaRef.current.selectionEnd;
-              const newCursorPos = transformCursor(cursorPos, transformedOp);
-              const newSelectionEnd = transformCursor(selectionEnd, transformedOp);
-
-              requestAnimationFrame(() => {
-                if (textAreaRef.current && !isComposingRef.current) {
-                  textAreaRef.current.setSelectionRange(newCursorPos, newSelectionEnd);
-                }
-              });
+        if (clientId === clientIdRef.current) {
+          setPendingOperations(prev => {
+            const acknowledgedOp = prev[0];
+            if (acknowledgedOp) {
+              setAcknowledgingOperations(ack => [...ack, acknowledgedOp]);
+              return prev.slice(1);
             }
+            return prev;
+          });
+          setServerVersion(message.version);
+        } else {
+          let transformedOp = { ...operation, version: message.version };
 
-            if (iAmLeader) {
-              if (saveTimeoutRef.current) {
-                clearTimeout(saveTimeoutRef.current);
+          setPendingOperations(currentPending => {
+            currentPending.forEach(pending => {
+              transformedOp = transformOperation(transformedOp, pending.operation);
+              pending.operation = transformOperation(pending.operation, operation);
+            });
+            return currentPending;
+          });
+
+          setContent(prevContent => applyOperation(prevContent, transformedOp));
+          setServerVersion(message.version);
+
+          setCursors(prevCursors => {
+            const newCursors = { ...prevCursors };
+            Object.keys(newCursors).forEach(uid => {
+              if (uid !== message.userId) {
+                newCursors[uid] = {
+                  ...newCursors[uid],
+                  position: transformCursor(newCursors[uid].position, transformedOp),
+                  selectionEnd: newCursors[uid].selectionEnd
+                      ? transformCursor(newCursors[uid].selectionEnd, transformedOp)
+                      : undefined,
+                };
               }
-              saveTimeoutRef.current = setTimeout(() => {
-                saveToDatabase();
-              }, 3000);
-            }
+            });
+            return newCursors;
+          });
+
+          if (textAreaRef.current && !isComposingRef.current) {
+            const cursorPos = textAreaRef.current.selectionStart;
+            const selectionEnd = textAreaRef.current.selectionEnd;
+            const newCursorPos = transformCursor(cursorPos, transformedOp);
+            const newSelectionEnd = transformCursor(selectionEnd, transformedOp);
+
+            requestAnimationFrame(() => {
+              if (textAreaRef.current && !isComposingRef.current) {
+                textAreaRef.current.setSelectionRange(newCursorPos, newSelectionEnd);
+              }
+            });
           }
-        } catch (error) {
-          console.error("Failed to decrypt content message:", error);
+
+          if (iAmLeader) {
+            if (saveTimeoutRef.current) {
+              clearTimeout(saveTimeoutRef.current);
+            }
+            saveTimeoutRef.current = setTimeout(() => {
+              saveToDatabase();
+            }, 3000);
+          }
         }
+      } catch (error) {
+        console.error("Failed to decrypt content message:", error);
+      }
+    }
+  };
+
+  const handleSocketMessage = useCallback(async (event: MessageEvent) => {
+    try {
+      const message: ReceivedMessage = JSON.parse(event.data);
+      const handler = messageHandlers[message.type as keyof typeof messageHandlers];
+      if (handler) {
+        await handler(message);
       }
     } catch (error) {
       console.error("Failed to parse message:", error);
@@ -534,15 +559,6 @@ export default function MarkdownEditor({
     };
   }, [handleTextChange, handleCursorChange]);
 
-  const stringToColor = (str: string) => {
-    let hash = 60;
-    for (let i = 0; i < str.length; i++) {
-      hash = str.charCodeAt(i) + ((hash << 5) - hash);
-    }
-    const hue = hash % 360;
-    return `hsl(${hue}, 90%, 35%)`;
-  };
-
   return (
       <div>
         {iAmLeader && (
@@ -581,13 +597,7 @@ export default function MarkdownEditor({
           {Object.entries(cursors).map(([uid, cursor]) => {
             if (uid === userId || !textAreaRef.current) return null;
 
-            const top = cursor.top;
-            const left = cursor.left;
-            const isVisible = top >= 0 && left >= 0 &&
-                top <= textAreaRef.current.clientHeight &&
-                left <= textAreaRef.current.clientWidth;
-
-            if (!isVisible) return null;
+            const {top, left} = getCaretCoordinates(textAreaRef.current, cursor.position);
 
             const cursorColor = stringToColor(uid);
 
@@ -624,8 +634,8 @@ export default function MarkdownEditor({
                       <div
                           className="absolute pointer-events-none"
                           style={{
-                            top: `${cursor.top}px`,
-                            left: `${cursor.left}px`,
+                            top: `${top}px`,
+                            left: `${left}px`,
                             height: `${parseInt(window.getComputedStyle(textAreaRef.current).lineHeight)}px`,
                             backgroundColor: cursorColor,
                             opacity: 0.3,
