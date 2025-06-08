@@ -11,9 +11,13 @@ import {
   encryptWithSymmetricKey,
 } from "@/lib/cryptoClientSide";
 
+import getCaretCoordinates from "textarea-caret"
+
 interface CursorPosition {
   userId: string;
   position: number;
+  left: number;
+  top: number;
   timestamp: number;
   selectionEnd?: number;
 }
@@ -242,9 +246,14 @@ export default function MarkdownEditor({
 
     const position = textAreaRef.current.selectionStart;
     const selectionEnd = textAreaRef.current.selectionEnd;
+    console.log("Sending out cursor position", position);
 
+    const {top, left} = getCaretCoordinates(textAreaRef.current, position)
     const cursorData = {
       position,
+      left: left,
+      top: top,
+
       selectionEnd: selectionEnd !== position ? selectionEnd : undefined,
       timestamp: Date.now(),
     };
@@ -349,10 +358,13 @@ export default function MarkdownEditor({
               secretKeyForWorkspace
           )) as string;
           const cursorData = JSON.parse(decryptedData);
+          console.log('cursor data received', cursorData.position, cursorData.left, cursorData.top)
           setCursors((prevCursors) => ({
             ...prevCursors,
             [message.userId]: {
               userId: message.userId,
+              left: cursorData.left,
+              top: cursorData.top,
               position: cursorData.position,
               selectionEnd: cursorData.selectionEnd,
               timestamp: cursorData.timestamp,
@@ -531,26 +543,6 @@ export default function MarkdownEditor({
     return `hsl(${hue}, 90%, 35%)`;
   };
 
-  const calculateCursorCoordinates = (position: number) => {
-    if (!textAreaRef.current) return { top: 0, left: 0 };
-
-    const textarea = textAreaRef.current;
-    const textBeforeCursor = content.substring(0, position);
-    const lines = textBeforeCursor.split('\n');
-    const currentLine = lines.length - 1;
-    const currentColumn = lines[lines.length - 1].length;
-
-    const lineHeight = parseInt(window.getComputedStyle(textarea).lineHeight);
-    const padding = parseInt(window.getComputedStyle(textarea).paddingTop);
-
-    const charWidth = 8.4;
-
-    const top = padding + currentLine * lineHeight - textarea.scrollTop;
-    const left = padding + currentColumn * charWidth - textarea.scrollLeft;
-
-    return { top, left };
-  };
-
   return (
       <div>
         {iAmLeader && (
@@ -589,7 +581,8 @@ export default function MarkdownEditor({
           {Object.entries(cursors).map(([uid, cursor]) => {
             if (uid === userId || !textAreaRef.current) return null;
 
-            const { top, left } = calculateCursorCoordinates(cursor.position);
+            const top = cursor.top;
+            const left = cursor.left;
             const isVisible = top >= 0 && left >= 0 &&
                 top <= textAreaRef.current.clientHeight &&
                 left <= textAreaRef.current.clientWidth;
@@ -631,9 +624,8 @@ export default function MarkdownEditor({
                       <div
                           className="absolute pointer-events-none"
                           style={{
-                            top: `${calculateCursorCoordinates(Math.min(cursor.position, cursor.selectionEnd)).top}px`,
-                            left: `${calculateCursorCoordinates(Math.min(cursor.position, cursor.selectionEnd)).left}px`,
-                            width: `${Math.abs(calculateCursorCoordinates(cursor.selectionEnd).left - calculateCursorCoordinates(cursor.position).left)}px`,
+                            top: `${cursor.top}px`,
+                            left: `${cursor.left}px`,
                             height: `${parseInt(window.getComputedStyle(textAreaRef.current).lineHeight)}px`,
                             backgroundColor: cursorColor,
                             opacity: 0.3,
