@@ -83,6 +83,7 @@ export default function InfoFiller({
           fileId={file.id}
           fileContent={fileContent}
           secretKeyForWorkspace={secretKeyForWorkspace}
+          viewOnly={viewOnly}
         />
       </div>
 

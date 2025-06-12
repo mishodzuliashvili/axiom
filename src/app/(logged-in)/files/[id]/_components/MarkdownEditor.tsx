@@ -143,11 +143,13 @@ export default function MarkdownEditor({
   fileId,
   fileContent,
   secretKeyForWorkspace,
+  viewOnly,
 }: {
   userId: string;
   fileId: string;
   fileContent: string;
   secretKeyForWorkspace: string;
+  viewOnly: boolean;
 }) {
   const socketRef = useRef<WebSocket | null>(null);
   const textAreaRef = useRef<HTMLTextAreaElement>(null);
@@ -167,12 +169,14 @@ export default function MarkdownEditor({
   const clientIdRef = useRef(`${userId}-${Date.now()}`);
   const isComposingRef = useRef(false);
 
-  const [viewMode, setViewMode] = useState("split");
+  const [viewMode, setViewMode] = useState<'split' | 'editor' | 'preview'>(viewOnly ? "preview" :"split");
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
 
   const sendOperation = useCallback(
       async (operation: Operation) => {
+        if (viewOnly) return;
+
         if (socketRef.current?.readyState === WebSocket.OPEN) {
           const message = {
             operation,
@@ -289,6 +293,7 @@ export default function MarkdownEditor({
   );
 
   const handleCursorChange = useCallback(async () => {
+    if (viewOnly) return;
     if (!textAreaRef.current) return;
 
     const position = textAreaRef.current.selectionStart;
@@ -683,6 +688,7 @@ export default function MarkdownEditor({
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-1">
                   <button
+                      disabled={viewOnly}
                       onClick={() => setViewMode("editor")}
                       className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
                           viewMode === "editor"
@@ -694,6 +700,7 @@ export default function MarkdownEditor({
                     Edit
                   </button>
                   <button
+                      disabled={viewOnly}
                       onClick={() => setViewMode("split")}
                       className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
                           viewMode === "split"
