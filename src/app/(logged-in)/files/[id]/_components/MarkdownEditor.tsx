@@ -10,8 +10,12 @@ import {
   decryptWithSymmetricKey,
   encryptWithSymmetricKey,
 } from "@/lib/cryptoClientSide";
-
-import getCaretCoordinates from "textarea-caret"
+import { MarkdownHooks } from "react-markdown";
+import remarkGfm from "remark-gfm";
+import rehypeSanitize from "rehype-sanitize";
+import getCaretCoordinates from "textarea-caret";
+import rehypeStarryNight from "rehype-starry-night";
+import { Edit, Eye, Maximize2, Settings, Split, Users } from "lucide-react";
 
 interface CursorPosition {
   userId: string;
@@ -163,110 +167,132 @@ export default function MarkdownEditor({
   const clientIdRef = useRef(`${userId}-${Date.now()}`);
   const isComposingRef = useRef(false);
 
-  const sendOperation = useCallback(async (operation: Operation) => {
-    if (socketRef.current?.readyState === WebSocket.OPEN) {
-      const message = {
-        operation,
-        clientId: clientIdRef.current,
-      };
+  const [viewMode, setViewMode] = useState("split");
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
 
-      const encryptedMessage = await encryptWithSymmetricKey(
-          JSON.stringify(message),
-          secretKeyForWorkspace
-      );
+  const sendOperation = useCallback(
+      async (operation: Operation) => {
+        if (socketRef.current?.readyState === WebSocket.OPEN) {
+          const message = {
+            operation,
+            clientId: clientIdRef.current,
+          };
 
-      socketRef.current.send(
-          JSON.stringify({
-            type: "content",
-            encryptedMessage,
-          } as ContentSendMessage)
-      );
-    }
-  }, [secretKeyForWorkspace]);
+          const encryptedMessage = await encryptWithSymmetricKey(
+              JSON.stringify(message),
+              secretKeyForWorkspace
+          );
+
+          socketRef.current.send(
+              JSON.stringify({
+                type: "content",
+                encryptedMessage,
+              } as ContentSendMessage)
+          );
+        }
+      },
+      [secretKeyForWorkspace]
+  );
 
   const flushPendingUpdate = useCallback(async () => {
     if (pendingUpdateRef.current) {
       const operation = pendingUpdateRef.current;
       pendingUpdateRef.current = null;
 
-      setPendingOperations(prev => [...prev, {
-        operation,
-        originalOperation: { ...operation }
-      }]);
+      setPendingOperations((prev) => [
+        ...prev,
+        {
+          operation,
+          originalOperation: { ...operation },
+        },
+      ]);
 
       await sendOperation(operation);
     }
   }, [sendOperation]);
 
-  const handleTextChange = useCallback((newText: string, _: number) => {
-    const currentText = content;
+  const handleTextChange = useCallback(
+      (newText: string, _: number) => {
+        const currentText = content;
 
-    if (newText === currentText) return;
+        if (newText === currentText) return;
 
-    let operation: Operation | null = null;
+        let operation: Operation | null = null;
 
-    if (newText.length > currentText.length) {
-      const insertPos = findInsertPosition(currentText, newText);
-      const insertedContent = newText.substring(insertPos, insertPos + (newText.length - currentText.length));
+        if (newText.length > currentText.length) {
+          const insertPos = findInsertPosition(currentText, newText);
+          const insertedContent = newText.substring(
+              insertPos,
+              insertPos + (newText.length - currentText.length)
+          );
 
-      operation = {
-        type: "insert",
-        position: insertPos,
-        content: insertedContent,
-        clientId: clientIdRef.current,
-        version: serverVersion,
-      };
-    } else if (newText.length < currentText.length) {
-      const deletePos = findDeletePosition(currentText, newText);
+          operation = {
+            type: "insert",
+            position: insertPos,
+            content: insertedContent,
+            clientId: clientIdRef.current,
+            version: serverVersion,
+          };
+        } else if (newText.length < currentText.length) {
+          const deletePos = findDeletePosition(currentText, newText);
 
-      operation = {
-        type: "delete",
-        position: deletePos,
-        length: currentText.length - newText.length,
-        clientId: clientIdRef.current,
-        version: serverVersion,
-      };
-    }
-
-    if (operation) {
-      setContent(newText);
-
-      if (updateTimeoutRef.current) {
-        clearTimeout(updateTimeoutRef.current);
-      }
-
-      if (pendingUpdateRef.current) {
-        if (pendingUpdateRef.current.type === operation.type &&
-            pendingUpdateRef.current.type === "insert" &&
-            operation.type === "insert" &&
-            pendingUpdateRef.current.position + pendingUpdateRef.current.content!.length === operation.position) {
-          pendingUpdateRef.current.content += operation.content!;
-        } else if (pendingUpdateRef.current.type === operation.type &&
-            pendingUpdateRef.current.type === "delete" &&
-            operation.type === "delete" &&
-            operation.position + operation.length! === pendingUpdateRef.current.position) {
-          pendingUpdateRef.current.position = operation.position;
-          pendingUpdateRef.current.length! += operation.length!;
-        } else {
-          void flushPendingUpdate();
-          pendingUpdateRef.current = operation;
+          operation = {
+            type: "delete",
+            position: deletePos,
+            length: currentText.length - newText.length,
+            clientId: clientIdRef.current,
+            version: serverVersion,
+          };
         }
-      } else {
-        pendingUpdateRef.current = operation;
-      }
 
-      updateTimeoutRef.current = setTimeout(() => {
-        void flushPendingUpdate();
-      }, 100);
-    }
-  }, [content, serverVersion, flushPendingUpdate]);
+        if (operation) {
+          setContent(newText);
+
+          if (updateTimeoutRef.current) {
+            clearTimeout(updateTimeoutRef.current);
+          }
+
+          if (pendingUpdateRef.current) {
+            if (
+                pendingUpdateRef.current.type === operation.type &&
+                pendingUpdateRef.current.type === "insert" &&
+                operation.type === "insert" &&
+                pendingUpdateRef.current.position +
+                pendingUpdateRef.current.content!.length ===
+                operation.position
+            ) {
+              pendingUpdateRef.current.content += operation.content!;
+            } else if (
+                pendingUpdateRef.current.type === operation.type &&
+                pendingUpdateRef.current.type === "delete" &&
+                operation.type === "delete" &&
+                operation.position + operation.length! ===
+                pendingUpdateRef.current.position
+            ) {
+              pendingUpdateRef.current.position = operation.position;
+              pendingUpdateRef.current.length! += operation.length!;
+            } else {
+              void flushPendingUpdate();
+              pendingUpdateRef.current = operation;
+            }
+          } else {
+            pendingUpdateRef.current = operation;
+          }
+
+          updateTimeoutRef.current = setTimeout(() => {
+            void flushPendingUpdate();
+          }, 100);
+        }
+      },
+      [content, serverVersion, flushPendingUpdate]
+  );
 
   const handleCursorChange = useCallback(async () => {
     if (!textAreaRef.current) return;
 
     const position = textAreaRef.current.selectionStart;
     const selectionEnd = textAreaRef.current.selectionEnd;
-    console.log("Sending out cursor position", position);
 
     const cursorData = {
       position,
@@ -292,7 +318,10 @@ export default function MarkdownEditor({
     if (!iAmLeader || content === lastSavedContentRef.current) return;
 
     try {
-      const result = await updateFileContent({ fileId, content: await encryptWithSymmetricKey(content, secretKeyForWorkspace) });
+      const result = await updateFileContent({
+        fileId,
+        content: await encryptWithSymmetricKey(content, secretKeyForWorkspace),
+      });
       if (result.success) {
         console.log("File saved successfully");
         lastSavedContentRef.current = content;
@@ -356,7 +385,7 @@ export default function MarkdownEditor({
 
       setUsernames(currentUsernames);
 
-      setCursors(prevCursors => {
+      setCursors((prevCursors) => {
         const filteredCursors: { [key: string]: CursorPosition } = {};
         Object.keys(prevCursors).forEach((uid) => {
           if (message.usersList.includes(uid)) {
@@ -366,7 +395,7 @@ export default function MarkdownEditor({
         return filteredCursors;
       });
     },
-    "cursor": async (message: any) => {
+    cursor: async (message: any) => {
       if (message.userId !== userId) {
         try {
           const decryptedData = (await decryptWithSymmetricKey(
@@ -389,7 +418,7 @@ export default function MarkdownEditor({
         }
       }
     },
-    "content": async (message: any) => {
+    content: async (message: any) => {
       try {
         const decryptedContent = (await decryptWithSymmetricKey(
             message.encryptedMessage,
@@ -398,10 +427,10 @@ export default function MarkdownEditor({
         const { operation, clientId } = JSON.parse(decryptedContent);
 
         if (clientId === clientIdRef.current) {
-          setPendingOperations(prev => {
+          setPendingOperations((prev) => {
             const acknowledgedOp = prev[0];
             if (acknowledgedOp) {
-              setAcknowledgingOperations(ack => [...ack, acknowledgedOp]);
+              setAcknowledgingOperations((ack) => [...ack, acknowledgedOp]);
               return prev.slice(1);
             }
             return prev;
@@ -410,26 +439,40 @@ export default function MarkdownEditor({
         } else {
           let transformedOp = { ...operation, version: message.version };
 
-          setPendingOperations(currentPending => {
-            currentPending.forEach(pending => {
-              transformedOp = transformOperation(transformedOp, pending.operation);
-              pending.operation = transformOperation(pending.operation, operation);
+          setPendingOperations((currentPending) => {
+            currentPending.forEach((pending) => {
+              transformedOp = transformOperation(
+                  transformedOp,
+                  pending.operation
+              );
+              pending.operation = transformOperation(
+                  pending.operation,
+                  operation
+              );
             });
             return currentPending;
           });
 
-          setContent(prevContent => applyOperation(prevContent, transformedOp));
+          setContent((prevContent) =>
+              applyOperation(prevContent, transformedOp)
+          );
           setServerVersion(message.version);
 
-          setCursors(prevCursors => {
+          setCursors((prevCursors) => {
             const newCursors = { ...prevCursors };
-            Object.keys(newCursors).forEach(uid => {
+            Object.keys(newCursors).forEach((uid) => {
               if (uid !== message.userId) {
                 newCursors[uid] = {
                   ...newCursors[uid],
-                  position: transformCursor(newCursors[uid].position, transformedOp),
+                  position: transformCursor(
+                      newCursors[uid].position,
+                      transformedOp
+                  ),
                   selectionEnd: newCursors[uid].selectionEnd
-                      ? transformCursor(newCursors[uid].selectionEnd, transformedOp)
+                      ? transformCursor(
+                          newCursors[uid].selectionEnd,
+                          transformedOp
+                      )
                       : undefined,
                 };
               }
@@ -441,11 +484,17 @@ export default function MarkdownEditor({
             const cursorPos = textAreaRef.current.selectionStart;
             const selectionEnd = textAreaRef.current.selectionEnd;
             const newCursorPos = transformCursor(cursorPos, transformedOp);
-            const newSelectionEnd = transformCursor(selectionEnd, transformedOp);
+            const newSelectionEnd = transformCursor(
+                selectionEnd,
+                transformedOp
+            );
 
             requestAnimationFrame(() => {
               if (textAreaRef.current && !isComposingRef.current) {
-                textAreaRef.current.setSelectionRange(newCursorPos, newSelectionEnd);
+                textAreaRef.current.setSelectionRange(
+                    newCursorPos,
+                    newSelectionEnd
+                );
               }
             });
           }
@@ -462,20 +511,24 @@ export default function MarkdownEditor({
       } catch (error) {
         console.error("Failed to decrypt content message:", error);
       }
-    }
+    },
   };
 
-  const handleSocketMessage = useCallback(async (event: MessageEvent) => {
-    try {
-      const message: ReceivedMessage = JSON.parse(event.data);
-      const handler = messageHandlers[message.type as keyof typeof messageHandlers];
-      if (handler) {
-        await handler(message);
-      }
-    } catch (error) {
-      console.error("Failed to parse message:", error);
-    }
-  }, [userId, usernames, secretKeyForWorkspace]);
+  const handleSocketMessage = useCallback(
+      async (event: MessageEvent) => {
+        try {
+          const message: ReceivedMessage = JSON.parse(event.data);
+          const handler =
+              messageHandlers[message.type as keyof typeof messageHandlers];
+          if (handler) {
+            await handler(message);
+          }
+        } catch (error) {
+          console.error("Failed to parse message:", error);
+        }
+      },
+      [userId, usernames, secretKeyForWorkspace]
+  );
 
   useEffect(() => {
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
@@ -557,95 +610,248 @@ export default function MarkdownEditor({
       textarea.removeEventListener("focus", handleCursorChange);
       textarea.removeEventListener("select", handleCursorChange);
     };
-  }, [handleTextChange, handleCursorChange]);
+  }, [handleTextChange, handleCursorChange, viewMode]); // view mode change causes textarea ref to change
+
+  useEffect(() => {
+    if (textAreaRef.current) {
+      textAreaRef.current.style.height = "auto";
+      textAreaRef.current.style.height =
+          textAreaRef.current.scrollHeight + "px";
+    }
+  }, [content, viewMode]); // view mode change causes textarea ref to change
+
+  useEffect(() => {
+    console.log('cursors', cursors);
+  }, [cursors]);
 
   return (
-      <div>
-        {iAmLeader && (
-            <div className="bg-green-500 text-white p-2 rounded-md mb-4">
-              You are the leader of this file. Your changes will be automatically saved.
-            </div>
-        )}
-
-        {Object.keys(usernames).length > 0 && (
-            <div className="p-2 rounded-md mb-4">
-              <h3 className="text-lg font-semibold">Active users:</h3>
-              <div className="flex flex-wrap gap-3 py-2">
-                {Object.entries(usernames).map(([uid, username]) => (
-                    <div
-                        key={uid}
-                        className="text-white px-4 rounded-md py-1"
-                        style={{ backgroundColor: stringToColor(uid) }}
-                    >
-                      {username}
+      <div
+          className={` bg-gradient-to-br from-gray-900 via-gray-800 to-blue-900 ${
+              isFullscreen ? "fixed inset-0 z-[100]" : ""
+          }`}
+      >
+        <div className="container mx-auto p-4  h-full ">
+          {/* Header */}
+          <div className="mb-6">
+            {Object.keys(usernames).length > 0 && (
+                <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 p-4 rounded-lg mb-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center">
+                      <Users className="h-4 w-4 text-gray-400 mr-2" />
+                      <h3 className="text-sm font-semibold text-gray-300">
+                        Active collaborators
+                      </h3>
                     </div>
-                ))}
+                    <div className="flex items-center space-x-2">
+                      <button
+                          onClick={() => setShowSettings(!showSettings)}
+                          className="p-1.5 rounded-md bg-gray-700/50 hover:bg-gray-700 text-gray-400 hover:text-gray-300 transition-colors"
+                      >
+                        <Settings className="h-4 w-4" />
+                      </button>
+                      <button
+                          onClick={() => setIsFullscreen(!isFullscreen)}
+                          className="p-1.5 rounded-md bg-gray-700/50 hover:bg-gray-700 text-gray-400 hover:text-gray-300 transition-colors"
+                      >
+                        <Maximize2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-2 mt-3">
+                    {Object.entries(usernames).map(([uid, username]) => (
+                        <div
+                            key={uid}
+                            className="px-3 py-1.5 rounded-full text-xs font-medium text-white backdrop-blur-sm border border-white/20"
+                            style={{
+                              backgroundColor: `${stringToColor(uid)}40`,
+                              borderColor: `${stringToColor(uid)}60`,
+                            }}
+                        >
+                          <div
+                              className="w-2 h-2 rounded-full mr-2 inline-block"
+                              style={{ backgroundColor: stringToColor(uid) }}
+                          ></div>
+                          {username}
+                        </div>
+                    ))}
+                  </div>
+                </div>
+            )}
+
+            {/* Toolbar */}
+            <div className="bg-gray-800/70 backdrop-blur-sm border border-gray-700/50 rounded-lg p-3 mb-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-1">
+                  <button
+                      onClick={() => setViewMode("editor")}
+                      className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+                          viewMode === "editor"
+                              ? "bg-blue-600 text-white shadow-lg shadow-blue-600/25"
+                              : "bg-gray-700/50 text-gray-400 hover:bg-gray-700 hover:text-gray-300"
+                      }`}
+                  >
+                    <Edit className="h-3 w-3 mr-1.5" />
+                    Edit
+                  </button>
+                  <button
+                      onClick={() => setViewMode("split")}
+                      className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+                          viewMode === "split"
+                              ? "bg-blue-600 text-white shadow-lg shadow-blue-600/25"
+                              : "bg-gray-700/50 text-gray-400 hover:bg-gray-700 hover:text-gray-300"
+                      }`}
+                  >
+                    <Split className="h-3 w-3 mr-1.5" />
+                    Split
+                  </button>
+                  <button
+                      onClick={() => setViewMode("preview")}
+                      className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+                          viewMode === "preview"
+                              ? "bg-blue-600 text-white shadow-lg shadow-blue-600/25"
+                              : "bg-gray-700/50 text-gray-400 hover:bg-gray-700 hover:text-gray-300"
+                      }`}
+                  >
+                    <Eye className="h-3 w-3 mr-1.5" />
+                    Preview
+                  </button>
+                </div>
+
+                <div className="flex items-center space-x-2">
+                  <div className="flex items-center text-xs text-green-400">
+                    <div className="w-1.5 h-1.5 rounded-full bg-green-500 mr-1.5 animate-pulse"></div>
+                    Auto-saved
+                  </div>
+                </div>
               </div>
             </div>
-        )}
+          </div>
 
-        <div className="relative">
-        <textarea
-            ref={textAreaRef}
-            value={content}
-            onChange={() => {}}
-            className="w-full h-96 p-4 focus:outline-none bg-gray-900 font-mono"
-            placeholder="Start typing your markdown content..."
-            spellCheck={false}
-        />
-
-          {Object.entries(cursors).map(([uid, cursor]) => {
-            if (uid === userId || !textAreaRef.current) return null;
-
-            const {top, left} = getCaretCoordinates(textAreaRef.current, cursor.position);
-
-            const cursorColor = stringToColor(uid);
-
-            return (
-                <div key={uid}>
+          {/* Editor Container */}
+          <div
+              className={`relative bg-gray-800/30 backdrop-blur-sm border border-gray-700/50 rounded-xl overflow-hidden shadow-2xl ${
+                  isFullscreen ? "h-[calc(100vh-18rem)]" : "h-[65vh]"
+              }`}
+          >
+            <div
+                className={`flex h-full ${
+                    viewMode === "split" ? "divide-x divide-gray-700/50" : ""
+                }`}
+            >
+              {/* Editor Panel */}
+              {(viewMode === "editor" || viewMode === "split") && (
                   <div
-                      className="absolute pointer-events-none"
-                      style={{
-                        top: `${top}px`,
-                        left: `${left}px`,
-                        zIndex: 10,
-                      }}
+                      className={`${
+                          viewMode === "split" ? "w-1/2" : "w-full"
+                      } bg-gray-900/50 overflow-auto`}
                   >
-                    <div
-                        className="absolute bottom-0 left-0 text-white text-xs px-2 py-0.5 rounded shadow-sm"
-                        style={{
-                          whiteSpace: "nowrap",
-                          backgroundColor: cursorColor,
-                          transform: "translateY(-100%)",
-                        }}
-                    >
-                      {usernames[uid] || uid}
-                    </div>
-                    <div
-                        className="w-0.5 h-5"
-                        style={{
-                          backgroundColor: cursorColor,
-                          animation: "pulse 1.5s infinite",
-                        }}
-                    />
-                  </div>
+                    <div className={`relative`}>
+                  <textarea
+                      ref={textAreaRef}
+                      value={content}
+                      onChange={() => {}}
+                      className="w-full p-6 bg-transparent text-gray-100 font-mono text-sm leading-relaxed resize-none focus:outline-none placeholder-gray-500 selection:bg-blue-500/30 overflow-hidden"
+                      placeholder="# Start typing your markdown content...\n\nUse **bold**, *italic*, and other markdown syntax."
+                      spellCheck={false}
+                      style={{ minHeight: "100%" }}
+                  />
+                      {/* Collaborative cursors */}
+                      {Object.entries(cursors).map(([uid, cursor]) => {
+                        if (uid === userId || !textAreaRef.current) return null;
 
-                  {cursor.selectionEnd && cursor.selectionEnd !== cursor.position && (
-                      <div
-                          className="absolute pointer-events-none"
-                          style={{
-                            top: `${top}px`,
-                            left: `${left}px`,
-                            height: `${parseInt(window.getComputedStyle(textAreaRef.current).lineHeight)}px`,
-                            backgroundColor: cursorColor,
-                            opacity: 0.3,
-                            zIndex: 9,
-                          }}
-                      />
-                  )}
+                        const { top, left } = getCaretCoordinates(
+                            textAreaRef.current,
+                            cursor.position
+                        );
+                        const cursorColor = stringToColor(uid);
+
+                        return (
+                            <div key={uid}>
+                              <div
+                                  className="absolute pointer-events-none z-20"
+                                  style={{
+                                    top: `${top}px`,
+                                    left: `${left}px`,
+                                  }}
+                              >
+                                <div
+                                    className="absolute bottom-0 left-0 text-white text-xs px-2 py-1 rounded-md shadow-lg backdrop-blur-sm"
+                                    style={{
+                                      whiteSpace: "nowrap",
+                                      backgroundColor: cursorColor,
+                                      transform: "translateY(-100%)",
+                                    }}
+                                >
+                                  {usernames[uid] || uid}
+                                </div>
+                                <div
+                                    className="w-0.5 h-6"
+                                    style={{
+                                      backgroundColor: cursorColor,
+                                      animation: "pulse 1.5s infinite",
+                                    }}
+                                />
+                              </div>
+
+                              {cursor.selectionEnd &&
+                                  cursor.selectionEnd !== cursor.position && (
+                                      <div
+                                          className="absolute pointer-events-none z-10"
+                                          style={{
+                                            top: `${top}px`,
+                                            left: `${left}px`,
+                                            height: `${parseInt(
+                                                window.getComputedStyle(textAreaRef.current)
+                                                    .lineHeight
+                                            )}px`,
+                                            backgroundColor: cursorColor,
+                                            opacity: 0.2,
+                                          }}
+                                      />
+                                  )}
+                            </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+              )}
+
+              {/* Preview Panel */}
+              {(viewMode === "preview" || viewMode === "split") && (
+                  <div
+                      className={`${
+                          viewMode === "split" ? "w-1/2" : "w-full"
+                      } bg-gray-800/30 overflow-auto prose-gray prose prose prose-lg prose-gray prose-headings:text-white prose-p:text-gray-200 prose-strong:text-white prose-em:text-gray-300 prose-a:text-blue-400 prose-code:text-pink-400 prose-code:bg-gray-800 prose-pre:bg-gray-800 prose-pre:text-gray-200 prose-blockquote:text-gray-300 prose-blockquote:border-blue-500 prose-ul:text-gray-200 prose-ol:text-gray-200 prose-li:text-gray-200 prose-table:text-gray-200 prose-th:text-white prose-td:text-gray-200 prose-hr:border-gray-600 max-w-none p-6`}
+                  >
+                    <MarkdownHooks
+                        remarkPlugins={[remarkGfm]}
+                        rehypePlugins={[rehypeSanitize, rehypeStarryNight]}
+                    >
+                      {content}
+                    </MarkdownHooks>
+                  </div>
+              )}
+            </div>
+          </div>
+
+          {/* Status Bar */}
+          <div className="mt-4 bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-lg p-3">
+            <div className="flex items-center justify-between text-xs">
+              <div className="flex items-center space-x-4 text-gray-400">
+                <span>Lines: {content.split("\n").length}</span>
+                <span>Words: {content.split(/\s+/).filter((w) => w).length}</span>
+                <span>Characters: {content.length}</span>
+              </div>
+              <div className="flex items-center space-x-3 text-gray-400">
+                <div className="flex items-center">
+                  <div className="w-1.5 h-1.5 rounded-full bg-blue-500 mr-1.5"></div>
+                  Encrypted
                 </div>
-            );
-          })}
+                <span>•</span>
+                <span>Markdown</span>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
   );

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import "@wooorm/starry-night/style/dark";
 import { Toaster } from "react-hot-toast";
 import WithNavbarAndFooter from "./_components/navigation/WithNavbarAndFooter";
 

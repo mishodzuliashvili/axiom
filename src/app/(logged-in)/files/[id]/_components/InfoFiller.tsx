@@ -12,10 +12,12 @@ export default function InfoFiller({
   userId,
   file,
   encryptedWorkspaceSecretKey,
+  viewOnly,
 }: {
   file: PrismaFile;
   userId: string;
   encryptedWorkspaceSecretKey: string;
+  viewOnly: boolean;
 }) {
   const [fileName, setFileName] = useState<string>("");
   const [fileContent, setFileContent] = useState<string>("");
@@ -66,9 +68,9 @@ export default function InfoFiller({
   }
 
   return (
-    <div className="flex flex-col space-y-4 w-full max-w-4xl mx-auto p-4">
+    <div className="flex flex-col space-y-4 w-full max-w-6xl mx-auto p-4">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="flex-1">
+        <div className="flex-1 max-w-4xl">
           <span className=" text-xl font-semibold w-full border-b-2 border-gray-200 focus:border-blue-500 outline-none pb-1 px-1">
             {fileName}
           </span>
