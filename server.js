@@ -70,25 +70,45 @@ app.prepare().then(() => {
       }
 
       const fileId = query.fileId;
+      let canUserEdit = false;
 
       // Check if file exists and user has permission to access it
       if (fileId) {
         try {
-          const file = await prismaForWebsockets.file.findFirst({
-            where: {
-              id: fileId,
-              Workspace: {
-                users: {
-                  some: {
-                    userId: userId,
-                    permissions: {
-                      hasSome: [WorkspaceUserPermission.EDIT],
+          const [file, {permissions: userPermissions}] = await Promise.all([
+            prismaForWebsockets.file.findFirst({
+              where: {
+                id: fileId,
+                Workspace: {
+                  users: {
+                    some: {
+                      userId: userId,
+                      permissions: {
+                        hasSome: [WorkspaceUserPermission.EDIT, WorkspaceUserPermission.VIEW],
+                      },
                     },
                   },
                 },
               },
-            },
-          });
+            }),
+            prismaForWebsockets.workspaceUser.findFirst({
+              where: {
+                userId: userId,
+                workspace: {
+                  files: {
+                    some: {
+                      id: fileId,
+                    },
+                  },
+                },
+              },
+              select: {
+                permissions: true,
+              },
+            }),
+          ]);
+
+          canUserEdit = userPermissions.includes(WorkspaceUserPermission.EDIT);
 
           if (!file) {
             console.error(`User ${userId} has no access to file ${fileId}`);
@@ -113,7 +133,7 @@ app.prepare().then(() => {
         console.log(
           `WebSocket connection established for user ${userId} on file ${fileId}`
         );
-        wss.emit("connection", ws, fileId, userId);
+        wss.emit("connection", ws, fileId, userId, canUserEdit);
       });
     } else {
       socket.destroy();

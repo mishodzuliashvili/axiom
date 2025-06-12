@@ -31,7 +31,10 @@ export default async function FilePage({
 
   if (!workspaceUser) notFound();
 
-  if (!workspaceUser.permissions.includes(WorkspaceUserPermission.EDIT))
+  if (
+      !workspaceUser.permissions.includes(WorkspaceUserPermission.EDIT)
+      && !workspaceUser.permissions.includes(WorkspaceUserPermission.VIEW)
+  )
     notFound();
 
   return (
@@ -40,6 +43,10 @@ export default async function FilePage({
         userId={user.id}
         encryptedWorkspaceSecretKey={workspaceUser.encryptedWorkspaceSecretKey}
         file={file}
+        viewOnly={
+            !workspaceUser.permissions.includes(WorkspaceUserPermission.EDIT)
+            && workspaceUser.permissions.includes(WorkspaceUserPermission.VIEW)
+        }
       />
     </div>
   );

@@ -27,10 +27,13 @@ export default async function handleClose(ws, fileId, userId) {
     fileConnections[fileId] &&
     fileConnections[fileId].size > 0
   ) {
-    const newLeader = Array.from(fileConnections[fileId])[0];
-    fileLeader[fileId] = newLeader;
-    if (newLeader.ws.readyState === 1) {
-      newLeader.ws.send(JSON.stringify({ type: "you-are-leader", fileId }));
+    const newLeader = Array.from(fileConnections[fileId]).find(conn => conn.canEdit);
+
+    if (newLeader) {
+      fileLeader[fileId] = newLeader;
+      if (newLeader.ws.readyState === 1) {
+        newLeader.ws.send(JSON.stringify({ type: "you-are-leader", fileId }));
+      }
     }
   }
 
