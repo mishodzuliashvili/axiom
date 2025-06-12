@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "node server.js",
+    "dev": "nodemon server.js",
     "build": "next build",
     "start": "NODE_ENV=production node server.js",
     "lint": "next lint",
@@ -16,6 +16,7 @@
   "dependencies": {
     "@prisma/client": "6.6.0",
     "@types/uuid": "^10.0.0",
+    "@wooorm/starry-night": "^3.8.0",
     "clsx": "^2.1.1",
     "jsonwebtoken": "^9.0.2",
     "lucide-react": "^0.503.0",
@@ -24,6 +25,10 @@
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-hot-toast": "^2.5.2",
+    "react-markdown": "^10.1.0",
+    "rehype-sanitize": "^6.0.0",
+    "rehype-starry-night": "^2.2.0",
+    "remark-gfm": "^4.0.1",
     "server-only": "^0.0.1",
     "tailwind-merge": "^3.2.0",
     "textarea-caret": "^3.1.0",
@@ -33,6 +38,7 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@tailwindcss/typography": "^0.5.16",
     "@testing-library/dom": "^10.4.0",
     "@testing-library/react": "^16.3.0",
     "@types/jsonwebtoken": "^9.0.9",
@@ -45,6 +51,7 @@
     "@vitejs/plugin-react": "^4.4.1",
     "autoprefixer": "^10.4.21",
     "jsdom": "^26.1.0",
+    "nodemon": "^3.1.10",
     "postcss": "^8.5.3",
     "prisma": "^6.6.0",
     "tailwindcss": "^3.4.17",
