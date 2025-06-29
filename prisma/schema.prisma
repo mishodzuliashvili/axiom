@@ -55,5 +55,5 @@ model File {
   encryptedMetadata String
 
   workspaceId String
-  Workspace   Workspace @relation(fields: [workspaceId], references: [id])
+  Workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 }
