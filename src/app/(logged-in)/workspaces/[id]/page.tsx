@@ -1,10 +1,10 @@
-import { redirect } from "next/navigation";
-import { getUser } from "@/lib/auth";
-import prisma from "@/lib/prisma";
-import WorkspaceHeader from "./_components/WorkspaceHeader";
-import AddFileButton from "./_components/AddFileButton";
-import FilesList from "./_components/FilesList";
-import EmptyState from "./_components/EmptyState";
+import { redirect } from 'next/navigation';
+import { getUser } from '@/lib/auth';
+import prisma from '@/lib/prisma';
+import WorkspaceHeader from './_components/WorkspaceHeader';
+import AddFileButton from './_components/AddFileButton';
+import FilesList from './_components/FilesList';
+import EmptyState from './_components/EmptyState';
 
 export default async function WorkspacePage({
   params,
@@ -15,7 +15,7 @@ export default async function WorkspacePage({
   const user = await getUser();
 
   if (!user) {
-    redirect("/login");
+    redirect('/login');
   }
 
   const workspace = await prisma.workspace.findUnique({
@@ -30,7 +30,7 @@ export default async function WorkspacePage({
 
   const workspaceUser = workspace?.users.find((u) => u.userId === user.id);
   if (!workspace || !workspaceUser) {
-    redirect("/");
+    redirect('/');
   }
 
   const permissions = workspaceUser.permissions || [];
@@ -40,7 +40,8 @@ export default async function WorkspacePage({
       <WorkspaceHeader
         workspaceEncryptedKey={workspaceUser.encryptedWorkspaceSecretKey}
         workspace={workspace}
-        canManageUsers={permissions.includes("MANAGE_USERS")}
+        canManageUsers={permissions.includes('MANAGE_USERS')}
+        canDeleteWorkspace={permissions.includes('CREATOR')}
       />
 
       <div>
@@ -52,7 +53,7 @@ export default async function WorkspacePage({
             <div className="container">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-xl font-bold text-white">Files</h2>
-                {permissions.includes("EDIT") && (
+                {permissions.includes('EDIT') && (
                   <AddFileButton
                     workspaceEncryptedKey={
                       workspaceUser.encryptedWorkspaceSecretKey
@@ -74,7 +75,7 @@ export default async function WorkspacePage({
               ) : (
                 <div>
                   <EmptyState
-                    canAdd={permissions.includes("EDIT")}
+                    canAdd={permissions.includes('EDIT')}
                     workspaceId={workspace.id}
                   />
                 </div>
